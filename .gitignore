@@ -1,4 +1,8 @@
 node_modules/
+pdd-app-separated/selenium-tests/node_modules/
+pdd-app-separated/selenium-tests/reports/*.xlsx
+pdd-app-separated/selenium-tests/reports/*.csv
+pdd-app-separated/selenium-tests/reports/*.html
 .DS_Store
 *.log
 .system_generated/

@@ -1,0 +1,48 @@
+name: E2E Automation Testing
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  run-e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: pdd-app-separated/selenium-tests/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: pdd-app-separated/selenium-tests
+        run: npm ci
+
+      - name: Run E2E Tests (Headless Chrome)
+        working-directory: pdd-app-separated/selenium-tests
+        run: npm run test:headless
+
+      - name: Compile Excel Report to Premium HTML
+        if: always()
+        working-directory: pdd-app-separated/selenium-tests
+        run: npm run compile:report
+
+      - name: Upload E2E Test Report Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-reports
+          path: |
+            pdd-app-separated/selenium-tests/reports/*.xlsx
+            pdd-app-separated/selenium-tests/reports/*.csv
+            pdd-app-separated/selenium-tests/reports/*.html
+          if-no-files-found: warn

@@ -5,7 +5,8 @@
   "main": "run-tests.js",
   "scripts": {
     "test": "node run-tests.js",
-    "test:headless": "node run-tests.js --headless"
+    "test:headless": "node run-tests.js --headless",
+    "compile:report": "node convert-report.js"
   },
   "dependencies": {
     "selenium-webdriver": "^4.27.0",
