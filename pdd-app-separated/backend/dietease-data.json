@@ -229,6 +229,106 @@
       "fat": 20,
       "source": "⚡ Built-in DB",
       "barcode": "037600164801"
+    },
+    "990000000001": {
+      "name": "Mock Apple",
+      "brand": "Mock Farms",
+      "calories": 52,
+      "protein": 0.3,
+      "carbs": 14,
+      "fat": 0.2,
+      "source": "⚡ Built-in DB",
+      "barcode": "990000000001"
+    },
+    "990000000002": {
+      "name": "Mock Banana",
+      "brand": "Mock Farms",
+      "calories": 89,
+      "protein": 1.1,
+      "carbs": 22.8,
+      "fat": 0.3,
+      "source": "⚡ Built-in DB",
+      "barcode": "990000000002"
+    },
+    "990000000003": {
+      "name": "Mock Orange",
+      "brand": "Mock Farms",
+      "calories": 47,
+      "protein": 0.9,
+      "carbs": 11.8,
+      "fat": 0.1,
+      "source": "⚡ Built-in DB",
+      "barcode": "990000000003"
+    },
+    "990000000004": {
+      "name": "Mock Strawberry",
+      "brand": "Mock Farms",
+      "calories": 32,
+      "protein": 0.7,
+      "carbs": 7.7,
+      "fat": 0.3,
+      "source": "⚡ Built-in DB",
+      "barcode": "990000000004"
+    },
+    "990000000005": {
+      "name": "Mock Grape",
+      "brand": "Mock Farms",
+      "calories": 69,
+      "protein": 0.7,
+      "carbs": 18.1,
+      "fat": 0.2,
+      "source": "⚡ Built-in DB",
+      "barcode": "990000000005"
+    },
+    "990000000006": {
+      "name": "Mock Pineapple",
+      "brand": "Mock Farms",
+      "calories": 50,
+      "protein": 0.5,
+      "carbs": 13.1,
+      "fat": 0.1,
+      "source": "⚡ Built-in DB",
+      "barcode": "990000000006"
+    },
+    "990000000007": {
+      "name": "Mock Blueberry",
+      "brand": "Mock Farms",
+      "calories": 57,
+      "protein": 0.7,
+      "carbs": 14.5,
+      "fat": 0.3,
+      "source": "⚡ Built-in DB",
+      "barcode": "990000000007"
+    },
+    "990000000008": {
+      "name": "Mock Watermelon",
+      "brand": "Mock Farms",
+      "calories": 30,
+      "protein": 0.6,
+      "carbs": 7.6,
+      "fat": 0.2,
+      "source": "⚡ Built-in DB",
+      "barcode": "990000000008"
+    },
+    "990000000009": {
+      "name": "Mock Peach",
+      "brand": "Mock Farms",
+      "calories": 39,
+      "protein": 0.9,
+      "carbs": 9.5,
+      "fat": 0.3,
+      "source": "⚡ Built-in DB",
+      "barcode": "990000000009"
+    },
+    "990000000010": {
+      "name": "Mock Cherry",
+      "brand": "Mock Farms",
+      "calories": 50,
+      "protein": 1,
+      "carbs": 12,
+      "fat": 0.3,
+      "source": "⚡ Built-in DB",
+      "barcode": "990000000010"
     }
   },
   "users": {
