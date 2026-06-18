@@ -30,6 +30,7 @@ const TEST_MODULES = [
   { file: './tests/09_scan_mode',    label: '09 — Scan Mode'       },
   { file: './tests/10_manual_entry', label: '10 — Manual Entry'    },
   { file: './tests/11_ui_styling',   label: '11 — UI & Styling'    },
+  { file: './tests/12_database_integrity', label: '12 — Database Integrity' },
 ];
 
 /* ── Console colours ── */

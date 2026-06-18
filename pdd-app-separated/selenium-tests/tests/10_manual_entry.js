@@ -1,7 +1,21 @@
 /**
  * TEST 10 — Manual Entry (10 tests)
  */
-const { navigateTo, By } = require('../utils/driver');
+const http = require('http');
+const { navigateTo, By, BASE_URL } = require('../utils/driver');
+
+/** Remove a test-product barcode from server cache so next run treats it as unknown. */
+function serverDeleteProduct(barcode) {
+  return new Promise((resolve) => {
+    const url = new URL(`${BASE_URL}/api/test/products/${encodeURIComponent(barcode)}`);
+    const req = http.request(url, { method: 'DELETE' }, res => {
+      res.resume();
+      res.on('end', () => resolve());
+    });
+    req.on('error', () => resolve()); // ignore errors — best-effort cleanup
+    req.end();
+  });
+}
 
 async function jsClick(driver, el) {
   await driver.executeScript('arguments[0].scrollIntoView({block:"center"});', el);
@@ -12,6 +26,8 @@ async function jsClick(driver, el) {
 module.exports = async function runTests(driver) {
   const results = [];
   await navigateTo(driver); await driver.sleep(800);
+  // Use a timestamp-based barcode to guarantee it never exists in the DB
+  const unknownBarcode = '99' + Date.now().toString().slice(-11);
   const push = (name,pass,dur,info) => results.push({ name, status:pass?'PASS':'FAIL', duration:dur, category:'Manual Entry', error:info, timestamp:Date.now() });
 
   // T1 — Engine tags
@@ -32,9 +48,9 @@ module.exports = async function runTests(driver) {
   t0 = Date.now();
   try {
     const input = await driver.findElement(By.id('manualInput'));
-    await input.clear(); await input.sendKeys('0000000000099');
+    await input.clear(); await input.sendKeys(unknownBarcode);
     await jsClick(driver, await driver.findElement(By.css('.mrow button')));
-    await driver.sleep(12000);
+    await driver.sleep(5000);
     const display = await driver.executeScript('return document.getElementById("addCard").style.display||""');
     push('Unknown Barcode Shows Manual Entry Form', display==='block', Date.now()-t0, display==='block'?`Add card display: block`:`display: "${display}"`);
   } catch(e) { push('Unknown Barcode Shows Manual Entry Form', false, Date.now()-t0, e.message); }
@@ -83,6 +99,8 @@ module.exports = async function runTests(driver) {
     await driver.executeScript("document.getElementById('maProt').value='10';");
     await driver.executeScript("document.getElementById('maCarb').value='30';");
     await driver.executeScript("document.getElementById('maFat').value='8';");
+    // Set barcode so POST /api/products doesn't get a 400 (barcode is required)
+    await driver.executeScript(`document.getElementById('maBarcode').value=arguments[0];`, unknownBarcode);
     await jsClick(driver, await driver.findElement(By.className('save-btn')));
     await driver.sleep(800);
     const rName = await driver.executeScript('return document.getElementById("rName").innerText||document.getElementById("rName").textContent||""');
@@ -97,6 +115,9 @@ module.exports = async function runTests(driver) {
     const exists = await driver.executeScript('return arguments[0]!==null', addCard);
     push('Add Card Container Element Exists', exists, Date.now()-t0, exists?'#addCard found':'#addCard missing');
   } catch(e) { push('Add Card Container Element Exists', false, Date.now()-t0, e.message); }
+
+  // Cleanup: remove the test barcode from server product cache so next run treats it as unknown
+  await serverDeleteProduct(unknownBarcode);
 
   return results;
 };

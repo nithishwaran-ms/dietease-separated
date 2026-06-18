@@ -13,6 +13,15 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  console.log(`[HTTP] ${req.method} ${req.url} - Auth: ${req.headers['authorization'] || 'none'}`);
+  const originalSend = res.send;
+  res.send = function(body) {
+    console.log(`[HTTP RESPONSE] ${res.statusCode} for ${req.method} ${req.url}`);
+    return originalSend.apply(this, arguments);
+  };
+  next();
+});
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 /* ── Helpers ── */
@@ -66,7 +75,76 @@ async function fetchFromWeb(code) {
 
 /* ════════════════════════════════════════════════════════════
    API ROUTES
-════════════════════════════════════════════════════════════ */
+* ════════════════════════════════════════════════════════════ */
+
+/* Auth Middleware */
+function getAuthUser(req, res, next) {
+  const auth = req.headers['authorization'] || '';
+  let email = 'guest@dietease.com'; // fallback
+  if (auth.startsWith('Bearer ')) {
+    email = auth.substring(7).trim().toLowerCase();
+  }
+  if (!email) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  
+  const db = load();
+  if (!db.users[email]) {
+    if (email === 'guest@dietease.com') {
+      db.users[email] = {
+        password: 'password',
+        settings: { daily_goal: 2000 },
+        food_log: []
+      };
+      save(db);
+    } else {
+      return res.status(401).json({ error: 'user_not_found' });
+    }
+  }
+  req.userEmail = email;
+  req.user = db.users[email];
+  req.db = db;
+  next();
+}
+
+/* Auth endpoints */
+app.post('/api/auth/register', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password required' });
+  }
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail.includes('@')) {
+    return res.status(400).json({ error: 'invalid email address' });
+  }
+  
+  const db = load();
+  if (db.users[cleanEmail]) {
+    return res.status(409).json({ error: 'user already exists' });
+  }
+  
+  db.users[cleanEmail] = {
+    password: password,
+    settings: { daily_goal: 2000 },
+    food_log: []
+  };
+  save(db);
+  res.json({ ok: true, email: cleanEmail });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password required' });
+  }
+  const cleanEmail = email.trim().toLowerCase();
+  const db = load();
+  const user = db.users[cleanEmail];
+  if (!user || user.password !== password) {
+    return res.status(401).json({ error: 'invalid credentials' });
+  }
+  res.json({ ok: true, email: cleanEmail });
+});
 
 /* Health check */
 app.get('/api/health', (req, res) => {
@@ -107,62 +185,56 @@ app.get('/api/lookup/:barcode', async (req, res) => {
 });
 
 /* GET /api/log?date=YYYY-MM-DD */
-app.get('/api/log', (req, res) => {
+app.get('/api/log', getAuthUser, (req, res) => {
   const date = req.query.date || todayStr();
-  const db = load();
-  const entries = db.food_log.filter(e => e.log_date === date);
+  const entries = req.user.food_log.filter(e => e.log_date === date);
   res.json({ date, entries });
 });
 
 /* POST /api/log */
-app.post('/api/log', (req, res) => {
+app.post('/api/log', getAuthUser, (req, res) => {
   const { barcode='', name, brand='', source='', calories=0,
           protein=0, carbs=0, fat=0, servings=1 } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
 
-  const db  = load();
   const id  = Date.now();
   const entry = {
     id, barcode, name, brand, source,
     calories: +calories, protein: +protein, carbs: +carbs, fat: +fat,
     servings: +servings,
     logged_cal: Math.round(+calories * +servings),
-    log_date: todayStr(),
+    log_date: req.body.log_date || todayStr(),
     log_time: timeStr(),
   };
-  db.food_log.unshift(entry);
-  save(db);
+  req.user.food_log.unshift(entry);
+  save(req.db);
   res.json({ id, logged_cal: entry.logged_cal });
 });
 
 /* DELETE /api/log/:id */
-app.delete('/api/log/:id', (req, res) => {
-  const db = load();
-  db.food_log = db.food_log.filter(e => e.id !== +req.params.id);
-  save(db);
+app.delete('/api/log/:id', getAuthUser, (req, res) => {
+  req.user.food_log = req.user.food_log.filter(e => e.id !== +req.params.id);
+  save(req.db);
   res.json({ ok: true });
 });
 
 /* GET /api/log/dates */
-app.get('/api/log/dates', (req, res) => {
-  const db = load();
-  const dates = [...new Set(db.food_log.map(e => e.log_date))].sort().reverse().slice(0, 30);
+app.get('/api/log/dates', getAuthUser, (req, res) => {
+  const dates = [...new Set(req.user.food_log.map(e => e.log_date))].sort().reverse().slice(0, 30);
   res.json({ dates });
 });
 
 /* GET /api/goal */
-app.get('/api/goal', (req, res) => {
-  const db = load();
-  res.json({ goal: db.settings.daily_goal || 2000 });
+app.get('/api/goal', getAuthUser, (req, res) => {
+  res.json({ goal: req.user.settings.daily_goal || 2000 });
 });
 
 /* PUT /api/goal */
-app.put('/api/goal', (req, res) => {
+app.put('/api/goal', getAuthUser, (req, res) => {
   const { goal } = req.body;
   if (!goal || isNaN(goal)) return res.status(400).json({ error: 'invalid goal' });
-  const db = load();
-  db.settings.daily_goal = parseInt(goal);
-  save(db);
+  req.user.settings.daily_goal = parseInt(goal);
+  save(req.db);
   res.json({ ok: true, goal: parseInt(goal) });
 });
 
@@ -171,6 +243,12 @@ app.get('/api/products', (req, res) => {
   const db = load();
   const q  = (req.query.q || '').toLowerCase();
   let products = Object.values(db.products);
+  
+  // Keep manual products at the end
+  const builtIn = products.filter(p => !p.is_manual);
+  const manual = products.filter(p => p.is_manual);
+  products = [...builtIn, ...manual];
+
   if (q) {
     products = products.filter(p =>
       (p.name  || '').toLowerCase().includes(q) ||
@@ -191,6 +269,78 @@ app.post('/api/products', (req, res) => {
     source: '✍️ Manual Entry', is_manual: true };
   save(db);
   res.json({ ok: true });
+});
+
+/* ═══════════════════════════════════════════════════════════
+   TEST HELPER ROUTES — used only by Selenium E2E tests
+   These allow direct server-side operations without relying
+   on headless-Chrome onclick event propagation.
+ * ═══════════════════════════════════════════════════════════ */
+
+/* POST /api/test/log
+   Seeds one or more food-log entries directly (bypasses frontend).
+   Body: { email?, barcode, name, calories, protein, carbs, fat, count? }
+   count defaults to 1 — adds that many identical entries (useful for accumulation tests). */
+app.post('/api/test/log', (req, res) => {
+  const email    = (req.body.email || 'guest@dietease.com').toLowerCase();
+  const count    = Math.max(1, parseInt(req.body.count) || 1);
+  const { barcode='', name='Test Food', calories=0, protein=0, carbs=0, fat=0, source='⚡ Built-in DB' } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const db = load();
+  if (!db.users[email]) {
+    db.users[email] = { password:'', settings:{ daily_goal:2000 }, food_log:[] };
+  }
+  const today = new Date().toLocaleDateString('en-CA');
+  const now   = new Date();
+  const timeStr = now.toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit', hour12:true }).toLowerCase();
+  for (let i = 0; i < count; i++) {
+    db.users[email].food_log.unshift({
+      id: Date.now() + i,
+      barcode, name,
+      calories: +calories, protein: +protein, carbs: +carbs, fat: +fat,
+      logged_cal: Math.round(+calories * 1),   // required by renderLog() for totalCal & progress bar
+      servings: 1, source,
+      log_date: today, log_time: timeStr
+    });
+  }
+  save(db);
+  res.json({ ok: true, added: count });
+});
+
+/* DELETE /api/test/log/:id?email=guest@dietease.com
+   Deletes a single food-log entry directly on the server. */
+app.delete('/api/test/log/:id', (req, res) => {
+  const email = (req.query.email || 'guest@dietease.com').toLowerCase();
+  const db = load();
+  if (!db.users[email]) return res.status(404).json({ error: 'user not found' });
+  const before = db.users[email].food_log.length;
+  db.users[email].food_log = db.users[email].food_log.filter(e => e.id !== +req.params.id);
+  save(db);
+  res.json({ ok: true, removed: before - db.users[email].food_log.length });
+});
+
+
+/* DELETE /api/test/log?email=guest@dietease.com&date=YYYY-MM-DD
+   Clears ALL food-log entries for a given date (defaults to today). */
+app.delete('/api/test/log', (req, res) => {
+  const email = (req.query.email || 'guest@dietease.com').toLowerCase();
+  const date  = req.query.date || new Date().toLocaleDateString('en-CA');
+  const db = load();
+  if (!db.users[email]) return res.status(404).json({ error: 'user not found' });
+  const before = db.users[email].food_log.length;
+  db.users[email].food_log = db.users[email].food_log.filter(e => e.log_date !== date);
+  save(db);
+  res.json({ ok: true, removed: before - db.users[email].food_log.length });
+});
+
+/* DELETE /api/test/products/:barcode
+   Removes a product from the product cache (e.g. test entries). */
+app.delete('/api/test/products/:barcode', (req, res) => {
+  const db = load();
+  const existed = !!db.products[req.params.barcode];
+  delete db.products[req.params.barcode];
+  if (existed) save(db);
+  res.json({ ok: true, existed });
 });
 
 /* ── Start server ── */

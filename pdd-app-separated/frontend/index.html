@@ -243,15 +243,35 @@
     .toast.w{background:linear-gradient(135deg,var(--warn),#d4870e);box-shadow:0 6px 24px rgba(240,160,75,.4)}
     .toast.e{background:linear-gradient(135deg,var(--danger),#cc3434);box-shadow:0 6px 24px rgba(255,87,87,.4)}
     .confwrap{position:fixed;inset:0;pointer-events:none;z-index:998;overflow:hidden}
-    .cp{position:absolute;border-radius:2px;animation:cfall linear forwards}
-    @keyframes cfall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+    /* ── Auth Screen ── */
+    .auth-overlay{position:fixed;inset:0;background:var(--bg);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px}
+    .auth-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:32px 24px;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:modalUp .4s cubic-bezier(.34,1.4,.64,1)}
+    .auth-title{font-family:'Syne',sans-serif;font-weight:800;font-size:24px;text-align:center;margin-bottom:8px;color:var(--accent)}
+    .auth-desc{font-size:13px;color:var(--muted);text-align:center;margin-bottom:24px;line-height:1.5}
+    .auth-toggle{text-align:center;margin-top:18px;font-size:12px;color:var(--muted)}
+    .auth-toggle span{color:var(--accent);cursor:pointer;font-weight:600;text-decoration:underline}
+    .auth-toggle span:hover{color:#00ffb3}
+    .logout-btn{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);color:var(--danger);font-size:11px;padding:5px 12px;border-radius:20px;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;display:none}
+    .logout-btn:hover{background:var(--danger);color:#0d1117;transform:translateY(-1px)}
+    
+    .modal-submit{width:100%;padding:13px;background:var(--accent);color:#0a0e14;border:none;border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;cursor:pointer;transition:all .2s;margin-top:6px}
+    .modal-submit:hover{background:#00ffb3;transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,229,160,.35)}
+    .modal .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .modal .fg.full{grid-template-columns:1fr}
+    .modal .ff label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+    .modal .ff input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px;color:var(--text);font-size:14px;outline:none;transition:all .2s}
+    .modal .ff input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,160,.08)}
+    .modal .ff input::placeholder{color:var(--muted);font-size:12px}
   </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="logo">Diet<span>Ease</span>+</div>
-    <div class="badge">BARCODE SCANNER</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="badge">BARCODE SCANNER</div>
+      <button class="logout-btn" id="logoutBtn" onclick="logoutUser()">Logout</button>
+    </div>
   </header>
 
   <nav class="nav" role="tablist">
@@ -430,12 +450,14 @@
 
 <script>
 /* ═══════════════════════════════════════════════
-   STATE — stored fully in localStorage
+   STATE — user session, client-server, and lookups
 ═══════════════════════════════════════════════ */
-let dailyGoal = parseInt(localStorage.getItem('de_goal')) || 2000;
+let dailyGoal = 2000;
 let foodLog   = [];
 let current   = null, servings = 1;
 let stream    = null, rafId = null, detecting = false;
+let currentUserEmail = localStorage.getItem('de_user') || '';
+let authMode = 'login'; // 'login' or 'register'
 
 // Custom product cache (user-scanned items)
 let productCache = JSON.parse(localStorage.getItem('de_products') || '{}');
@@ -467,17 +489,128 @@ const BUILTIN = {
   '037600164801' :{name:'Oreo Cookies',brand:'Nabisco',calories:471,protein:5,carbs:70,fat:20},
 };
 
+// Auth Fetch Helper
+async function authFetch(url, options = {}) {
+  if (!options.headers) {
+    options.headers = {};
+  }
+  if (currentUserEmail) {
+    options.headers['Authorization'] = `Bearer ${currentUserEmail}`;
+  }
+  return fetch(url, options);
+}
+
+// Initialize PWA App
+async function initApp() {
+  if (!currentUserEmail) {
+    showAuthScreen();
+    return;
+  }
+  
+  // Show logout button if logged in
+  document.getElementById('logoutBtn').style.display = 'block';
+  
+  try {
+    const goalRes = await authFetch('/api/goal');
+    if (goalRes.ok) {
+      const data = await goalRes.json();
+      dailyGoal = data.goal;
+      updateGoalUI();
+    } else if (goalRes.status === 401) {
+      logoutUser();
+      return;
+    }
+  } catch (err) {
+    console.error('Failed to fetch goal', err);
+  }
+  await loadTodayLog();
+}
+
+window.addEventListener('DOMContentLoaded', initApp);
+
+/* ── Authentication UI Logic ── */
+function showAuthScreen() {
+  document.getElementById('authOverlay').style.display = 'flex';
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+}
+
+function hideAuthScreen() {
+  document.getElementById('authOverlay').style.display = 'none';
+  document.getElementById('logoutBtn').style.display = 'block';
+}
+
+function toggleAuthMode() {
+  const title = document.getElementById('authTitle');
+  const desc = document.getElementById('authDesc');
+  const submitBtn = document.getElementById('authSubmitBtn');
+  const toggle = document.getElementById('authToggle');
+  
+  if (authMode === 'login') {
+    authMode = 'register';
+    title.textContent = 'Sign Up';
+    desc.textContent = 'Create a DietEase+ account to track your foods';
+    submitBtn.textContent = 'Sign Up';
+    toggle.innerHTML = 'Already have an account? <span onclick="toggleAuthMode()">Log In</span>';
+  } else {
+    authMode = 'login';
+    title.textContent = 'DietEase+';
+    desc.textContent = 'Log in to track your daily nutrition and history';
+    submitBtn.textContent = 'Log In';
+    toggle.innerHTML = 'New to DietEase+? <span onclick="toggleAuthMode()">Sign Up</span>';
+  }
+}
+
+async function submitAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  
+  if (!email || !password) {
+    toast('Please fill in email and password', 'w');
+    return;
+  }
+  if (!email.includes('@')) {
+    toast('Please enter a valid email address', 'w');
+    return;
+  }
+  
+  const url = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    
+    const data = await res.json();
+    if (res.ok) {
+      currentUserEmail = data.email;
+      localStorage.setItem('de_user', currentUserEmail);
+      hideAuthScreen();
+      toast(authMode === 'login' ? 'Welcome back!' : 'Account registered successfully!');
+      confetti();
+      await initApp();
+    } else {
+      toast(data.error || 'Authentication failed', 'e');
+    }
+  } catch (err) {
+    toast('Server connection failed', 'e');
+  }
+}
+
+function logoutUser() {
+  currentUserEmail = '';
+  localStorage.removeItem('de_user');
+  showAuthScreen();
+  toast('Logged out successfully');
+}
+
 /* ═══════════════════════════════════════════════
    EMOJI MAPPER (must be before INIT so emo() works on page load)
 ═══════════════════════════════════════════════ */
 const EM={beverage:'🥤',drink:'🥤',water:'💧',juice:'🍹',cola:'🥤',soda:'🥤',milk:'🥛',cheese:'🧀',yogurt:'🥣',bread:'🍞',rice:'🍚',pasta:'🍝',cereal:'🥣',chip:'🥔',snack:'🍟',cookie:'🍪',candy:'🍬',chocolate:'🍫',biscuit:'🍪',cracker:'🫙',fruit:'🍎',apple:'🍎',banana:'🍌',orange:'🍊',salad:'🥗',meat:'🥩',chicken:'🍗',fish:'🐟',tuna:'🐟',egg:'🥚',sauce:'🫙',soup:'🍲',coffee:'☕',tea:'🍵',protein:'💪',bar:'🍫',nuts:'🥜',peanut:'🥜',oat:'🥣',granola:'🥣',ice:'🍦',cake:'🎂',pizza:'🍕',burger:'🍔',noodle:'🍜',corn:'🌽',butter:'🧈',ghee:'🫙'};
 function emo(n=''){const l=n.toLowerCase();for(const[k,e]of Object.entries(EM))if(l.includes(k))return e;return'🥗';}
-
-/* ═══════════════════════════════════════════════
-   INIT
-═══════════════════════════════════════════════ */
-updateGoalUI();
-loadTodayLog();
 
 /* ═══════════════════════════════════════════════
    NAVIGATION
@@ -504,13 +637,27 @@ function toggleGoal() {
   ed.classList.toggle('on');
   if (ed.classList.contains('on')) document.getElementById('goalInput').focus();
 }
-function saveGoal() {
+async function saveGoal() {
   const v = parseInt(document.getElementById('goalInput').value);
   if (!v || v<100) { toast('Enter a valid goal','w'); return; }
-  dailyGoal = v;
-  localStorage.setItem('de_goal', v);
-  document.getElementById('ged').classList.remove('on');
-  renderLog(); toast(`🎯 Goal set to ${v} kcal!`); updateGoalUI();
+  try {
+    const res = await authFetch('/api/goal', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal: v })
+    });
+    if (res.ok) {
+      dailyGoal = v;
+      document.getElementById('ged').classList.remove('on');
+      toast(`🎯 Goal set to ${v} kcal!`);
+      updateGoalUI();
+      renderLog();
+    } else {
+      toast('❌ Failed to save goal', 'e');
+    }
+  } catch (err) {
+    toast('❌ Network error', 'e');
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -518,15 +665,21 @@ function saveGoal() {
 ═══════════════════════════════════════════════ */
 function todayKey() { return new Date().toLocaleDateString('en-CA'); }
 
-function loadTodayLog() {
-  foodLog = JSON.parse(localStorage.getItem('de_log_'+todayKey()) || '[]');
-  renderLog();
+async function loadTodayLog() {
+  try {
+    const res = await authFetch('/api/log');
+    if (res.ok) {
+      const data = await res.json();
+      foodLog = data.entries || [];
+      renderLog();
+    }
+  } catch (err) {
+    console.error('Failed to load today log', err);
+  }
 }
-function saveLog() {
-  localStorage.setItem('de_log_'+todayKey(), JSON.stringify(foodLog));
-}
+
 function renderLog() {
-  const total = foodLog.reduce((s,e) => s+(e.loggedCal||0), 0);
+  const total = foodLog.reduce((s,e) => s+(e.logged_cal||0), 0);
   document.getElementById('totalCal').textContent = total;
   const pct = Math.min(100,(total/dailyGoal)*100);
   const fill = document.getElementById('progFill');
@@ -537,87 +690,114 @@ function renderLog() {
   list.innerHTML = foodLog.map(e=>`
     <div class="litem">
       <div class="ll"><div class="lem">${emo(e.name)}</div>
-        <div><div class="lname">${e.name}</div><div class="lmeta">${e.servings}× · ${e.time} · ${e.source||''}</div></div>
+        <div><div class="lname">${e.name}</div><div class="lmeta">${e.servings}× · ${e.log_time} · ${e.source||''}</div></div>
       </div>
-      <div class="lr"><div class="lcal">${e.loggedCal} kcal</div>
+      <div class="lr"><div class="lcal">${e.logged_cal} kcal</div>
         <button class="delbtn" onclick="delEntry(${e.id})" title="Remove">✕</button>
       </div>
     </div>`).join('');
 }
-function delEntry(id) {
-  foodLog = foodLog.filter(e=>e.id!==id);
-  saveLog(); renderLog(); toast('🗑️ Removed','w');
-}
-function logFood() {
-  if (!current) return;
-  const e = {
-    ...current,
-    id: Date.now(),
-    loggedCal: Math.round((current.calories||0)*servings),
-    servings,
-    time: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
-  };
-  foodLog.unshift(e); saveLog(); renderLog();
-  // Cache to products
-  if (e.barcode) {
-    productCache[e.barcode] = {barcode:e.barcode,name:e.name,brand:e.brand||'',calories:e.calories||0,protein:e.protein||0,carbs:e.carbs||0,fat:e.fat||0,source:e.source||''};
-    localStorage.setItem('de_products', JSON.stringify(productCache));
+async function delEntry(id) {
+  try {
+    const res = await authFetch(`/api/log/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await loadTodayLog();
+      toast('🗑️ Removed','w');
+    }
+  } catch (err) {
+    toast('❌ Network error', 'e');
   }
-  toast(`✅ ${e.name} logged!`); confetti();
-  document.getElementById('resultCard').classList.remove('on');
-  current=null; servings=1;
-  ['t1','t2','t3','t4','t5','t6'].forEach(id=>tag(id,''));
+}
+async function logFood() {
+  if (!current) return;
+  const entry = {
+    barcode: current.barcode || '',
+    name: current.name,
+    brand: current.brand || '',
+    source: current.source || '',
+    calories: current.calories || 0,
+    protein: current.protein || 0,
+    carbs: current.carbs || 0,
+    fat: current.fat || 0,
+    servings
+  };
+  try {
+    const res = await authFetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    });
+    if (res.ok) {
+      toast(`✅ ${entry.name} logged!`);
+      confetti();
+      document.getElementById('resultCard').classList.remove('on');
+      current = null;
+      servings = 1;
+      ['t1','t2','t3','t4','t5','t6'].forEach(id => tag(id, ''));
+      await loadTodayLog();
+    } else {
+      toast('❌ Failed to log food', 'e');
+    }
+  } catch (err) {
+    toast('❌ Network error', 'e');
+  }
 }
 
 /* ═══════════════════════════════════════════════
    HISTORY
 ═══════════════════════════════════════════════ */
-function loadHistoryDates() {
-  // Collect all dates from localStorage keys
-  const dates = [];
-  for (let i=0; i<localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith('de_log_')) {
-      const d = k.replace('de_log_','');
-      const entries = JSON.parse(localStorage.getItem(k)||'[]');
-      if (entries.length) dates.push(d);
+async function loadHistoryDates() {
+  try {
+    const res = await authFetch('/api/log/dates');
+    if (res.ok) {
+      const data = await res.json();
+      const dates = data.dates || [];
+      const picker = document.getElementById('datePicker');
+      picker.innerHTML = '';
+      if (!dates.length) { picker.innerHTML='<span style="color:var(--muted);font-size:12px">No history yet — start logging food!</span>'; return; }
+      dates.forEach(date=>{
+        const chip = document.createElement('div');
+        chip.className = 'date-chip'+(date===todayKey()?' active':'');
+        chip.textContent = fmtDate(date); chip.dataset.date=date;
+        chip.onclick = ()=>{
+          document.querySelectorAll('.date-chip').forEach(c=>c.classList.remove('active'));
+          chip.classList.add('active'); loadHistoryForDate(date);
+        };
+        picker.appendChild(chip);
+      });
+      if (dates.length) loadHistoryForDate(dates[0]);
     }
+  } catch (err) {
+    console.error('Failed to load history dates', err);
   }
-  dates.sort().reverse();
-  const picker = document.getElementById('datePicker');
-  picker.innerHTML = '';
-  if (!dates.length) { picker.innerHTML='<span style="color:var(--muted);font-size:12px">No history yet — start logging food!</span>'; return; }
-  dates.forEach(date=>{
-    const chip = document.createElement('div');
-    chip.className = 'date-chip'+(date===todayKey()?' active':'');
-    chip.textContent = fmtDate(date); chip.dataset.date=date;
-    chip.onclick = ()=>{
-      document.querySelectorAll('.date-chip').forEach(c=>c.classList.remove('active'));
-      chip.classList.add('active'); loadHistoryForDate(date);
-    };
-    picker.appendChild(chip);
-  });
-  if (dates.length) loadHistoryForDate(dates[0]);
 }
-function loadHistoryForDate(date) {
-  const entries = JSON.parse(localStorage.getItem('de_log_'+date)||'[]');
-  const tCal  = entries.reduce((s,e)=>s+(e.loggedCal||0),0);
-  const tProt = entries.reduce((s,e)=>s+((e.protein||0)*(e.servings||1)),0);
-  const tCarb = entries.reduce((s,e)=>s+((e.carbs||0)*(e.servings||1)),0);
-  const tFat  = entries.reduce((s,e)=>s+((e.fat||0)*(e.servings||1)),0);
-  document.getElementById('hs-cal').textContent  = tCal;
-  document.getElementById('hs-prot').textContent = tProt.toFixed(1)+'g';
-  document.getElementById('hs-carb').textContent = tCarb.toFixed(1)+'g';
-  document.getElementById('hs-fat').textContent  = tFat.toFixed(1)+'g';
-  document.getElementById('histSummary').style.display='grid';
-  const list=document.getElementById('histList');
-  if (!entries.length){list.innerHTML='<div class="empty"><div class="ei">🍽️</div><p>No entries for this date</p></div>';return;}
-  list.innerHTML=entries.map(e=>`<div class="litem">
-    <div class="ll"><div class="lem">${emo(e.name)}</div>
-      <div><div class="lname">${e.name}</div><div class="lmeta">${e.servings||1}× · ${e.time||''} · ${e.source||''}</div></div>
-    </div>
-    <div class="lr"><div class="lcal">${e.loggedCal||0} kcal</div></div>
-  </div>`).join('');
+async function loadHistoryForDate(date) {
+  try {
+    const res = await authFetch(`/api/log?date=${date}`);
+    if (res.ok) {
+      const data = await res.json();
+      const entries = data.entries || [];
+      const tCal  = entries.reduce((s,e)=>s+(e.logged_cal||0),0);
+      const tProt = entries.reduce((s,e)=>s+((e.protein||0)*(e.servings||1)),0);
+      const tCarb = entries.reduce((s,e)=>s+((e.carbs||0)*(e.servings||1)),0);
+      const tFat  = entries.reduce((s,e)=>s+((e.fat||0)*(e.servings||1)),0);
+      document.getElementById('hs-cal').textContent  = tCal;
+      document.getElementById('hs-prot').textContent = tProt.toFixed(1)+'g';
+      document.getElementById('hs-carb').textContent = tCarb.toFixed(1)+'g';
+      document.getElementById('hs-fat').textContent  = tFat.toFixed(1)+'g';
+      document.getElementById('histSummary').style.display='grid';
+      const list=document.getElementById('histList');
+      if (!entries.length){list.innerHTML='<div class="empty"><div class="ei">🍽️</div><p>No entries for this date</p></div>';return;}
+      list.innerHTML=entries.map(e=>`<div class="litem">
+        <div class="ll"><div class="lem">${emo(e.name)}</div>
+          <div><div class="lname">${e.name}</div><div class="lmeta">${e.servings||1}× · ${e.log_time||''} · ${e.source||''}</div></div>
+        </div>
+        <div class="lr"><div class="lcal">${e.logged_cal||0} kcal</div></div>
+      </div>`).join('');
+    }
+  } catch (err) {
+    console.error('Failed to load history for date', err);
+  }
 }
 function fmtDate(d){
   if(d===todayKey())return'Today';
@@ -626,7 +806,7 @@ function fmtDate(d){
 }
 function exportCSV(){
   const header='Name,Brand,Source,Servings,Calories,Protein,Carbs,Fat,Time\n';
-  const rows=foodLog.map(e=>[e.name,e.brand||'',e.source||'',e.servings||1,e.loggedCal||0,(e.protein||0).toFixed(1),(e.carbs||0).toFixed(1),(e.fat||0).toFixed(1),e.time||''].map(v=>`"${v}"`).join(',')).join('\n');
+  const rows=foodLog.map(e=>[e.name,e.brand||'',e.source||'',e.servings||1,e.logged_cal||0,(e.protein||0).toFixed(1),(e.carbs||0).toFixed(1),(e.fat||0).toFixed(1),e.log_time||''].map(v=>`"${v}"`).join(',')).join('\n');
   const blob=new Blob([header+rows],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`dietease-${todayKey()}.csv`;a.click();
 }
@@ -634,18 +814,22 @@ function exportCSV(){
 /* ═══════════════════════════════════════════════
    PRODUCTS (localStorage cache + built-in)
 ═══════════════════════════════════════════════ */
-function loadProducts(q='') {
-  const all = {...BUILTIN};
-  for (const [k,v] of Object.entries(productCache)) all[k]=v;
-  let list = Object.values(all);
-  if (q) { const ql=q.toLowerCase(); list=list.filter(p=>(p.name||'').toLowerCase().includes(ql)||(p.brand||'').toLowerCase().includes(ql)); }
-  list.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  const el = document.getElementById('prodList');
-  if (!list.length){el.innerHTML='<div class="empty"><div class="ei">🔍</div><p>No products found</p></div>';return;}
-  el.innerHTML=list.map(p=>`<div class="prod-item" onclick="useCachedProduct('${p.barcode||''}','${(p.name||'').replace(/'/g,"\\'")}')">
-    <div><div class="pi-name">${p.name||'Unknown'}</div><div class="pi-brand">${p.brand||'—'} · ${p.barcode||'manual'}</div></div>
-    <div class="pi-cal">${p.calories||0} kcal</div>
-  </div>`).join('');
+async function loadProducts(q='') {
+  try {
+    const res = await authFetch(`/api/products?q=${encodeURIComponent(q)}`);
+    if (res.ok) {
+      const data = await res.json();
+      const list = data.products || [];
+      const el = document.getElementById('prodList');
+      if (!list.length){el.innerHTML='<div class="empty"><div class="ei">🔍</div><p>No products found</p></div>';return;}
+      el.innerHTML=list.map(p=>`<div class="prod-item" onclick="useCachedProduct('${p.barcode||''}','${(p.name||'').replace(/'/g,"\\'")}')">
+        <div><div class="pi-name">${p.name||'Unknown'}</div><div class="pi-brand">${p.brand||'—'} · ${p.barcode||'manual'}</div></div>
+        <div class="pi-cal">${p.calories||0} kcal</div>
+      </div>`).join('');
+    }
+  } catch (err) {
+    console.error('Failed to load products', err);
+  }
 }
 function searchProducts(){loadProducts(document.getElementById('prodSearch').value.trim());}
 function useCachedProduct(barcode,name){
@@ -775,7 +959,7 @@ function manualLookup(){
   lookupBarcode(code);
 }
 
-async function lookupBarcode(code){
+async function lookupBarcode(code) {
   showErr('');
   document.getElementById('addCard').style.display='none';
   document.getElementById('resultCard').classList.remove('on');
@@ -783,43 +967,27 @@ async function lookupBarcode(code){
   ['t1','t2','t3','t4'].forEach(id=>tag(id,'searching'));
   showSbar(`🔍 Searching for: ${code}`);
 
-  // 1. Built-in
-  if(BUILTIN[code]){hideSbar();tag('t5','hit');setCurrent({...BUILTIN[code],barcode:code,source:'⚡ Built-in DB'});return;}
-  // 2. User cache
-  if(productCache[code]){hideSbar();tag('t6','hit');setCurrent({...productCache[code],barcode:code});return;}
-
-  // 3. Online APIs
-  const[r1,r2,r3,r4]=await Promise.allSettled([dbOFF('world',code),dbOFF('in',code),dbUPC(code),dbOFF('fr',code)]);
-  hideSbar();
-  if(r1.value)tag('t1','hit');else tag('t1','fail');
-  if(r2.value)tag('t2','hit');else tag('t2','fail');
-  if(r3.value)tag('t3','hit');else tag('t3','fail');
-  if(r4.value)tag('t4','hit');else tag('t4','fail');
-  const all=[r1,r2,r3,r4].map(r=>r.value).filter(Boolean);
-  const best=all.find(f=>f.calories>0)||all[0]||null;
-  if(best){setCurrent(best);}
-  else{showErr(`❌ Barcode "${code}" not found in any database.\nFill in the product details below 👇`);openAdd(code);tag('t6','searching');}
-}
-
-async function dbOFF(region,code){
-  try{
-    const r=await fetch(`https://${region}.openfoodfacts.org/api/v0/product/${code}.json`,{signal:AbortSignal.timeout(6000)});
-    const d=await r.json();
-    if(d.status===0||!d.product)return null;
-    const p=d.product,n=p.nutriments||{};
-    const name=p.product_name||p.product_name_en||p.product_name_fr||p.generic_name||'';
-    if(!name)return null;
-    const sm={world:'🌍 Open Food Facts',in:'🇮🇳 OFF India',fr:'🇪🇺 OFF Europe'};
-    return{name,brand:p.brands||'',barcode:code,calories:Math.round(n['energy-kcal_100g']||(n['energy_100g']||0)/4.184),protein:+(n['proteins_100g']||0).toFixed(1),carbs:+(n['carbohydrates_100g']||0).toFixed(1),fat:+(n['fat_100g']||0).toFixed(1),source:`✅ ${sm[region]||'OFF'}`};
-  }catch{return null;}
-}
-async function dbUPC(code){
-  try{
-    const r=await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${code}`,{signal:AbortSignal.timeout(5000)});
-    const d=await r.json();
-    if(!d.items||!d.items[0]||!d.items[0].title)return null;
-    return{name:d.items[0].title,brand:d.items[0].brand||'',barcode:code,calories:0,protein:0,carbs:0,fat:0,source:'✅ UPC Item DB',noNutrition:true};
-  }catch{return null;}
+  try {
+    const res = await authFetch(`/api/lookup/${code}`);
+    hideSbar();
+    if (res.ok) {
+      const data = await res.json();
+      setCurrent(data);
+      if (data.source && data.source.includes('Built-in')) tag('t5','hit');
+      else if (data.source && data.source.includes('Manual')) tag('t6','hit');
+      else if (data.source && data.source.includes('India')) tag('t2','hit');
+      else if (data.source && data.source.includes('Europe')) tag('t4','hit');
+      else if (data.source && data.source.includes('UPC')) tag('t3','hit');
+      else tag('t1','hit');
+    } else {
+      showErr(`❌ Barcode "${code}" not found in any database.\nFill in the product details below 👇`);
+      openAdd(code);
+      tag('t6','searching');
+    }
+  } catch (err) {
+    hideSbar();
+    showErr('❌ Connection error or invalid barcode');
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -859,7 +1027,7 @@ function openAdd(code){
   document.getElementById('maBarcode').value=code;
   ['maName','maBrand','maCal','maProt','maCarb','maFat'].forEach(id=>document.getElementById(id).value='');
 }
-function saveManual(){
+async function saveManual(){
   const name=document.getElementById('maName').value.trim();
   if(!name){showErr('Please enter the product name.');return;}
   const barcode=document.getElementById('maBarcode').value;
@@ -868,9 +1036,17 @@ function saveManual(){
     protein:parseFloat(document.getElementById('maProt').value)||0,
     carbs:parseFloat(document.getElementById('maCarb').value)||0,
     fat:parseFloat(document.getElementById('maFat').value)||0,source:'✍️ Manual Entry'};
-  // Save to local cache permanently
-  if(barcode){productCache[barcode]=prod;localStorage.setItem('de_products',JSON.stringify(productCache));}
-  setCurrent(prod);document.getElementById('addCard').style.display='none';tag('t6','hit');showErr('');
+  try {
+    await authFetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(prod)
+    });
+    if(barcode){productCache[barcode]=prod;localStorage.setItem('de_products',JSON.stringify(productCache));}
+    setCurrent(prod);document.getElementById('addCard').style.display='none';tag('t6','hit');showErr('');
+  } catch (err) {
+    showErr('❌ Failed to save product details to server');
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -954,5 +1130,33 @@ window.addEventListener('appinstalled', () => {
   deferredInstallPrompt = null;
 });
 </script>
+
+<!-- User Authentication Overlay -->
+<div class="auth-overlay" id="authOverlay" style="display:none">
+  <div class="auth-card">
+    <div class="auth-title" id="authTitle">DietEase+</div>
+    <div class="auth-desc" id="authDesc">Log in to track your daily nutrition and history</div>
+    
+    <div class="modal" style="width:100%; border:none; padding:0; background:transparent; max-height:none; overflow:visible; animation:none">
+      <div class="fg full" style="margin-bottom:14px">
+        <div class="ff">
+          <label>Email Address</label>
+          <input type="email" id="authEmail" placeholder="e.g. user@example.com" required/>
+        </div>
+      </div>
+      <div class="fg full" style="margin-bottom:20px">
+        <div class="ff">
+          <label>Password</label>
+          <input type="password" id="authPassword" placeholder="••••••••" required/>
+        </div>
+      </div>
+      <button class="modal-submit" id="authSubmitBtn" onclick="submitAuth()">Log In</button>
+      <div class="auth-toggle" id="authToggle">
+        New to DietEase+? <span onclick="toggleAuthMode()">Sign Up</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

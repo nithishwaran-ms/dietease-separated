@@ -1,7 +1,4 @@
 {
-  "settings": {
-    "daily_goal": 2000
-  },
   "products": {
     "8901719100018": {
       "name": "Parle-G Biscuits",
@@ -234,5 +231,13 @@
       "barcode": "037600164801"
     }
   },
-  "food_log": []
+  "users": {
+    "guest@dietease.com": {
+      "password": "password",
+      "settings": {
+        "daily_goal": 2000
+      },
+      "food_log": []
+    }
+  }
 }

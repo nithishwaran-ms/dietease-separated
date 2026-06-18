@@ -185,14 +185,75 @@
     .confwrap{position:fixed;inset:0;pointer-events:none;z-index:998;overflow:hidden}
     .cp{position:absolute;border-radius:2px;animation:cfall linear forwards}
     @keyframes cfall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+
+    /* ── Add Food Button ── */
+    .add-food-btn{width:100%;padding:14px;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(0,229,160,.15));color:var(--accent);border:1.5px solid rgba(0,229,160,.3);border-radius:14px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;cursor:pointer;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;position:relative;overflow:hidden}
+    .add-food-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,229,160,.05),rgba(167,139,250,.05));opacity:0;transition:opacity .3s}
+    .add-food-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,229,160,.2);border-color:var(--accent)}
+    .add-food-btn:hover::before{opacity:1}
+    .add-food-btn:active{transform:translateY(0)}
+
+    /* ── Modal ── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:1000;display:none;align-items:center;justify-content:center;animation:fadeIn .2s ease}
+    .modal-overlay.on{display:flex}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .modal{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px;width:92%;max-width:420px;max-height:85vh;overflow-y:auto;animation:modalUp .3s cubic-bezier(.34,1.4,.64,1)}
+    @keyframes modalUp{from{opacity:0;transform:scale(.92) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .modal-title{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--accent)}
+    .modal-close{background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:18px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+    .modal-close:hover{border-color:var(--danger);color:var(--danger);background:rgba(255,107,107,.08)}
+    .modal .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .modal .fg.full{grid-template-columns:1fr}
+    .modal .ff label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+    .modal .ff input,.modal .ff select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px;color:var(--text);font-size:14px;outline:none;transition:all .2s}
+    .modal .ff input:focus,.modal .ff select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,160,.08)}
+    .modal .ff input::placeholder{color:var(--muted);font-size:12px}
+    .modal-submit{width:100%;padding:13px;background:var(--accent);color:#0d1117;border:none;border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;cursor:pointer;transition:all .2s;margin-top:6px}
+    .modal-submit:hover{background:#00ffb3;transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,229,160,.35)}
+
+    /* ── History Section ── */
+    .history-section{margin-top:28px}
+    .hist-toggle{width:100%;padding:13px;background:var(--card);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .hist-toggle:hover{border-color:var(--accent2);color:var(--accent2)}
+    .hist-toggle .arrow{transition:transform .3s;font-size:12px}
+    .hist-toggle.open .arrow{transform:rotate(180deg)}
+    .hist-body{display:none;animation:up .3s ease}
+    .hist-body.on{display:block}
+    .date-pills{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .date-pills::-webkit-scrollbar{display:none}
+    .date-pill{flex-shrink:0;padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap}
+    .date-pill.active{border-color:var(--accent2);color:var(--accent2);background:rgba(0,184,212,.1)}
+    .date-pill:hover{border-color:var(--accent2);color:var(--accent2)}
+    .hist-summary{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+    .hist-summary .hs-val{font-family:'Syne',sans-serif;font-weight:700;font-size:15px}
+    .hist-summary .hs-lbl{font-size:10px;color:var(--muted);text-transform:uppercase}
+    .hist-loglist{display:flex;flex-direction:column;gap:8px}
+    .hist-empty{text-align:center;padding:24px 0;color:var(--muted);font-size:13px}
+    /* ── Auth Screen ── */
+    .auth-overlay{position:fixed;inset:0;background:var(--bg);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px}
+    .auth-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:32px 24px;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:modalUp .4s cubic-bezier(.34,1.4,.64,1)}
+    .auth-title{font-family:'Syne',sans-serif;font-weight:800;font-size:24px;text-align:center;margin-bottom:8px;color:var(--accent)}
+    .auth-desc{font-size:13px;color:var(--muted);text-align:center;margin-bottom:24px;line-height:1.5}
+    .auth-toggle{text-align:center;margin-top:18px;font-size:12px;color:var(--muted)}
+    .auth-toggle span{color:var(--accent);cursor:pointer;font-weight:600;text-decoration:underline}
+    .auth-toggle span:hover{color:#00ffb3}
+    .logout-btn{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);color:var(--danger);font-size:11px;padding:5px 12px;border-radius:20px;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;transition:all .2s}
+    .logout-btn:hover{background:var(--danger);color:#0d1117;transform:translateY(-1px)}
   </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="logo">Diet<span>Ease</span>+</div>
-    <div class="badge">BARCODE SCANNER</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="badge">BARCODE SCANNER</div>
+      <button class="logout-btn" id="logoutBtn" onclick="logoutUser()" style="display:none">Logout</button>
+    </div>
   </header>
+
+  <!-- Add Food Manually standalone button -->
+  <button class="add-food-btn" onclick="openAddFoodModal()">➕ Add Food Manually</button>
 
   <div class="stitle"><div class="dot"></div>Scan Food Barcode</div>
 
@@ -333,19 +394,249 @@
   <div class="loglist" id="logList">
     <div class="empty"><div class="ei">🍽️</div><p>No foods logged yet</p></div>
   </div>
+
+  <!-- History Section -->
+  <div class="history-section">
+    <button class="hist-toggle" id="histToggle" onclick="toggleHistory()">
+      <span>📜 Food History</span>
+      <span class="arrow">▼</span>
+    </button>
+    <div class="hist-body" id="histBody">
+      <div class="date-pills" id="datePills"></div>
+      <div class="hist-summary" id="histSummary">
+        <div>
+          <div class="hs-val" id="histCal">0</div>
+          <div class="hs-lbl">kcal</div>
+        </div>
+        <div>
+          <div class="hs-val" id="histProt">0g</div>
+          <div class="hs-lbl">protein</div>
+        </div>
+        <div>
+          <div class="hs-val" id="histCarb">0g</div>
+          <div class="hs-lbl">carbs</div>
+        </div>
+        <div>
+          <div class="hs-val" id="histFat">0g</div>
+          <div class="hs-lbl">fat</div>
+        </div>
+      </div>
+      <div class="hist-loglist" id="histLogList">
+        <div class="hist-empty">Select a date to view past logs</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="confwrap" id="confwrap"></div>
 <div class="toast" id="toast"></div>
 
+<!-- Add Food Manually Modal -->
+<div class="modal-overlay" id="addFoodModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">➕ Add Food Manually</div>
+      <button class="modal-close" onclick="closeAddFoodModal()">✕</button>
+    </div>
+    <div class="fg full">
+      <div class="ff">
+        <label>Food Name *</label>
+        <input type="text" id="manualFoodName" placeholder="e.g. Oats with Milk" required/>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="ff">
+        <label>Brand</label>
+        <input type="text" id="manualFoodBrand" placeholder="e.g. Homemade"/>
+      </div>
+      <div class="ff">
+        <label>Calories (kcal) *</label>
+        <input type="number" id="manualFoodCal" placeholder="e.g. 250" required/>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="ff">
+        <label>Protein (g)</label>
+        <input type="number" id="manualFoodProt" placeholder="0" step="0.1"/>
+      </div>
+      <div class="ff">
+        <label>Carbs (g)</label>
+        <input type="number" id="manualFoodCarb" placeholder="0" step="0.1"/>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="ff">
+        <label>Fat (g)</label>
+        <input type="number" id="manualFoodFat" placeholder="0" step="0.1"/>
+      </div>
+      <div class="ff">
+        <label>Servings</label>
+        <input type="number" id="manualFoodServings" value="1" min="0.1" step="0.1"/>
+      </div>
+    </div>
+    <div class="fg full">
+      <div class="ff">
+        <label>Date</label>
+        <input type="date" id="manualFoodDate"/>
+      </div>
+    </div>
+    <button class="modal-submit" onclick="submitManualFood()">✅ Save & Log Food</button>
+  </div>
+</div>
+
+<!-- User Authentication Overlay -->
+<div class="auth-overlay" id="authOverlay" style="display:none">
+  <div class="auth-card">
+    <div class="auth-title" id="authTitle">DietEase+</div>
+    <div class="auth-desc" id="authDesc">Log in to track your daily nutrition and history</div>
+    
+    <div class="modal" style="width:100%; border:none; padding:0; background:transparent; max-height:none; overflow:visible; animation:none">
+      <div class="fg full" style="margin-bottom:14px">
+        <div class="ff">
+          <label>Email Address</label>
+          <input type="email" id="authEmail" placeholder="e.g. user@example.com" required/>
+        </div>
+      </div>
+      <div class="fg full" style="margin-bottom:20px">
+        <div class="ff">
+          <label>Password</label>
+          <input type="password" id="authPassword" placeholder="••••••••" required/>
+        </div>
+      </div>
+      <button class="modal-submit" id="authSubmitBtn" onclick="submitAuth()">Log In</button>
+      <div class="auth-toggle" id="authToggle">
+        New to DietEase+? <span onclick="toggleAuthMode()">Sign Up</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ── State ── */
-let dailyGoal = parseInt(localStorage.getItem('de_goal')) || 2000;
-let foodLog=[], current=null, servings=1;
-let stream=null, rafId=null, detecting=false;
+let dailyGoal = 2000;
+let foodLog = [], current = null, servings = 1;
+let stream = null, rafId = null, detecting = false;
+let activeHistoryDate = null;
+let currentUserEmail = localStorage.getItem('de_user') || '';
+let authMode = 'login'; // 'login' or 'register'
 
-document.getElementById('goalDisp').textContent = dailyGoal;
-document.getElementById('goalInput').value      = dailyGoal;
+// Auth Fetch Helper
+async function authFetch(url, options = {}) {
+  if (!options.headers) {
+    options.headers = {};
+  }
+  if (currentUserEmail) {
+    options.headers['Authorization'] = `Bearer ${currentUserEmail}`;
+  }
+  return fetch(url, options);
+}
+
+// Initialize on page load
+async function initApp() {
+  if (!currentUserEmail) {
+    showAuthScreen();
+    return;
+  }
+  
+  // Show logout button if logged in
+  document.getElementById('logoutBtn').style.display = 'block';
+  
+  try {
+    const goalRes = await authFetch('/api/goal');
+    if (goalRes.ok) {
+      const data = await goalRes.json();
+      dailyGoal = data.goal;
+      document.getElementById('goalDisp').textContent = dailyGoal;
+      document.getElementById('goalInput').value      = dailyGoal;
+    } else if (goalRes.status === 401) {
+      logoutUser();
+      return;
+    }
+  } catch (err) {
+    console.error('Failed to fetch goal', err);
+  }
+  await loadTodayLog();
+}
+
+window.addEventListener('DOMContentLoaded', initApp);
+
+/* ── Authentication UI Logic ── */
+function showAuthScreen() {
+  document.getElementById('authOverlay').style.display = 'flex';
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+}
+
+function hideAuthScreen() {
+  document.getElementById('authOverlay').style.display = 'none';
+  document.getElementById('logoutBtn').style.display = 'block';
+}
+
+function toggleAuthMode() {
+  const title = document.getElementById('authTitle');
+  const desc = document.getElementById('authDesc');
+  const submitBtn = document.getElementById('authSubmitBtn');
+  const toggle = document.getElementById('authToggle');
+  
+  if (authMode === 'login') {
+    authMode = 'register';
+    title.textContent = 'Sign Up';
+    desc.textContent = 'Create a DietEase+ account to track your foods';
+    submitBtn.textContent = 'Sign Up';
+    toggle.innerHTML = 'Already have an account? <span onclick="toggleAuthMode()">Log In</span>';
+  } else {
+    authMode = 'login';
+    title.textContent = 'DietEase+';
+    desc.textContent = 'Log in to track your daily nutrition and history';
+    submitBtn.textContent = 'Log In';
+    toggle.innerHTML = 'New to DietEase+? <span onclick="toggleAuthMode()">Sign Up</span>';
+  }
+}
+
+async function submitAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  
+  if (!email || !password) {
+    toast('Please fill in email and password', true);
+    return;
+  }
+  if (!email.includes('@')) {
+    toast('Please enter a valid email address', true);
+    return;
+  }
+  
+  const url = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    
+    const data = await res.json();
+    if (res.ok) {
+      currentUserEmail = data.email;
+      localStorage.setItem('de_user', currentUserEmail);
+      hideAuthScreen();
+      toast(authMode === 'login' ? 'Welcome back!' : 'Account registered successfully!');
+      confetti();
+      await initApp();
+    } else {
+      toast(data.error || 'Authentication failed', true);
+    }
+  } catch (err) {
+    toast('Server connection failed', true);
+  }
+}
+
+function logoutUser() {
+  currentUserEmail = '';
+  localStorage.removeItem('de_user');
+  showAuthScreen();
+  toast('Logged out successfully');
+}
 
 /* ── Mode tabs ── */
 function setMode(m) {
@@ -387,15 +678,11 @@ const BUILTIN={
   '037600164801' :{name:'Oreo Cookies',brand:'Nabisco',calories:471,protein:5,carbs:70,fat:20},
 };
 
-/* ══════════════════════════════════
-   PHOTO MODE — works on file:// !!
-   Uses <input capture> + BarcodeDetector on image
-══════════════════════════════════ */
+/* ── Photo Mode ── */
 async function handlePhoto(e) {
   const file = e.target.files[0];
   if (!file) return;
 
-  // Show preview
   const img = document.getElementById('capturedImg');
   const url = URL.createObjectURL(file);
   img.src = url;
@@ -407,7 +694,6 @@ async function handlePhoto(e) {
   showSbar('🔍 Reading barcode from photo…');
 
   try {
-    // Method 1: Native BarcodeDetector on image element (works on Android Chrome)
     if ('BarcodeDetector' in window) {
       await img.decode();
       const detector = new BarcodeDetector({
@@ -421,14 +707,12 @@ async function handlePhoto(e) {
       }
     }
 
-    // Method 2: Draw to canvas and use ZXing
     const bmp = await createImageBitmap(file);
     const cv  = document.createElement('canvas');
     cv.width  = bmp.width;
     cv.height = bmp.height;
     cv.getContext('2d').drawImage(bmp, 0, 0);
 
-    // Load ZXing dynamically
     if (!window.ZXing) {
       await loadScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js');
     }
@@ -447,14 +731,10 @@ async function handlePhoto(e) {
       showErr('❌ Error reading photo. Please type the barcode number manually.');
     }
   }
-
-  // Reset file input so same file can be selected again
   e.target.value = '';
 }
 
-/* ══════════════════════════════════
-   LIVE CAMERA MODE
-══════════════════════════════════ */
+/* ── Live Camera Mode ── */
 async function startCam() {
   showErr('');
   const btn = document.getElementById('startBtn');
@@ -480,7 +760,6 @@ async function startCam() {
     document.getElementById('stopBtn').style.display = 'block';
     detecting = false;
 
-    // Use BarcodeDetector if available (Android Chrome)
     if ('BarcodeDetector' in window) {
       const det = new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code']});
       const loop = async () => {
@@ -493,7 +772,6 @@ async function startCam() {
       };
       loop();
     } else {
-      // Fallback: ZXing
       if (!window.ZXing) await loadScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js');
       const cv = document.getElementById('canvas');
       const tick = () => {
@@ -543,7 +821,6 @@ function stopCam() {
   document.getElementById('stopBtn').style.display='none';
 }
 
-/* ── Load script helper ── */
 function loadScript(src) {
   return new Promise((res,rej)=>{
     const s=document.createElement('script');
@@ -552,7 +829,6 @@ function loadScript(src) {
   });
 }
 
-/* ── Manual lookup ── */
 function manualLookup() {
   const code=document.getElementById('manualInput').value.trim().replace(/\s/g,'');
   if (!code){showErr('Please enter a barcode.');return;}
@@ -568,11 +844,32 @@ async function lookupBarcode(code) {
   ['t1','t2','t3','t4'].forEach(id=>tag(id,'searching'));
   showSbar(`🔍 Searching for: ${code}`);
 
-  // Built-in instant check
   if (BUILTIN[code]) {
     hideSbar(); tag('t5','hit');
     setCurrent({...BUILTIN[code],barcode:code,source:'⚡ Built-in DB'});
     return;
+  }
+
+  try {
+    const localRes = await authFetch(`/api/lookup/${code}`);
+    if (localRes.ok) {
+      const cachedFood = await localRes.json();
+      hideSbar();
+      tag('t6', 'hit');
+      setCurrent({
+        name: cachedFood.name,
+        brand: cachedFood.brand,
+        barcode: code,
+        calories: cachedFood.calories,
+        protein: cachedFood.protein,
+        carbs: cachedFood.carbs,
+        fat: cachedFood.fat,
+        source: cachedFood.source || '✍️ Manual Entry'
+      });
+      return;
+    }
+  } catch (err) {
+    console.error('Error searching cached products', err);
   }
 
   const [r1,r2,r3,r4]=await Promise.allSettled([
@@ -584,8 +881,9 @@ async function lookupBarcode(code) {
 
   const all=[r1,r2,r3,r4].map(r=>r.value).filter(Boolean);
   const best=all.find(f=>f.calories>0)||all[0]||null;
-  if(best){setCurrent(best);}
-  else{
+  if(best){
+    setCurrent(best);
+  } else {
     showErr(`❌ Barcode "${code}" not found in any database.\nFill in the product details below 👇`);
     openAdd(code); tag('t6','searching');
   }
@@ -630,6 +928,7 @@ function setCurrent(food){
   updateMacros(false);
   document.getElementById('resultCard').classList.add('on');
 }
+
 function updateMacros(bump){
   const s=servings;
   [['rCal',Math.round(current.calories*s)],['rProt',(current.protein*s).toFixed(1)+'g'],
@@ -642,22 +941,91 @@ function updateMacros(bump){
   sc.textContent=servings%1===0?servings:servings.toFixed(1);
   if(bump){sc.classList.remove('bump');void sc.offsetWidth;sc.classList.add('bump');}
 }
+
 function srv(d){
   const n=Math.round((servings+d*.5)*10)/10;
   if(n<.5){const sc=document.getElementById('sc');sc.style.color='var(--danger)';setTimeout(()=>sc.style.color='',500);return;}
   servings=n; updateMacros(true);
 }
-function logFood(){
+
+// Log scanned food (uses API POST /api/log)
+async function logFood(){
   if(!current)return;
-  const e={...current,loggedCal:Math.round(current.calories*servings),loggedSrv:servings,
-    time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),id:Date.now()};
-  foodLog.unshift(e); renderLog();
-  toast(`✅ ${e.name} logged!`); confetti();
-  document.getElementById('resultCard').classList.remove('on');
-  current=null; servings=1;
-  ['t1','t2','t3','t4','t5','t6'].forEach(id=>tag(id,''));
+  const date = (document.getElementById('histBody').classList.contains('on') && activeHistoryDate) 
+               || new Date().toLocaleDateString('en-CA');
+  try {
+    const res = await authFetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        barcode: current.barcode || '',
+        name: current.name,
+        brand: current.brand || '',
+        source: current.source || '',
+        calories: current.calories,
+        protein: current.protein,
+        carbs: current.carbs,
+        fat: current.fat,
+        servings: servings,
+        log_date: date
+      })
+    });
+    if (res.ok) {
+      toast(`✅ ${current.name} logged!`); confetti();
+      document.getElementById('resultCard').classList.remove('on');
+      current=null; servings=1;
+      ['t1','t2','t3','t4','t5','t6'].forEach(id=>tag(id,''));
+      await loadTodayLog();
+      if (document.getElementById('histBody').classList.contains('on')) {
+        await loadHistoryDates();
+        if (activeHistoryDate) await loadHistoryLog(activeHistoryDate);
+      }
+    } else {
+      toast('❌ Failed to log food', true);
+    }
+  } catch (err) {
+    toast('❌ Network error', true);
+  }
 }
-function delEntry(id){foodLog=foodLog.filter(e=>e.id!==id);renderLog();toast('🗑️ Removed',true);}
+
+// Delete food item (uses API DELETE /api/log/:id)
+async function delEntry(id){
+  try {
+    const res = await authFetch(`/api/log/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      await loadTodayLog();
+      toast('🗑️ Removed', true);
+      if (document.getElementById('histBody').classList.contains('on')) {
+        await loadHistoryDates();
+        if (activeHistoryDate) await loadHistoryLog(activeHistoryDate);
+      }
+    } else {
+      toast('❌ Failed to delete entry', true);
+    }
+  } catch (err) {
+    toast('❌ Network error', true);
+  }
+}
+
+// Loads Today's log from backend API
+async function loadTodayLog() {
+  try {
+    const res = await authFetch('/api/log');
+    const data = await res.json();
+    foodLog = data.entries.map(e => ({
+      id: e.id,
+      name: e.name,
+      loggedCal: e.logged_cal,
+      loggedSrv: e.servings,
+      time: e.log_time,
+      source: e.source
+    }));
+    renderLog();
+  } catch (err) {
+    console.error('Failed to load log', err);
+  }
+}
+
 function renderLog(){
   const total=foodLog.reduce((s,e)=>s+e.loggedCal,0);
   document.getElementById('totalCal').textContent=total;
@@ -677,34 +1045,255 @@ function renderLog(){
     </div>`).join('');
 }
 
-/* ── Manual add ── */
+/* ── Manual Add Card (from barcode scanner lookup failure) ── */
 function openAdd(code){
   document.getElementById('addCard').style.display='block';
   document.getElementById('maBarcode').value=code;
   ['maName','maBrand','maCal','maProt','maCarb','maFat'].forEach(id=>document.getElementById(id).value='');
 }
-function saveManual(){
+
+async function saveManual(){
   const name=document.getElementById('maName').value.trim();
   if(!name){showErr('Please enter the product name.');return;}
-  setCurrent({name,brand:document.getElementById('maBrand').value.trim(),
-    barcode:document.getElementById('maBarcode').value,
-    calories:parseFloat(document.getElementById('maCal').value)||0,
-    protein:parseFloat(document.getElementById('maProt').value)||0,
-    carbs:parseFloat(document.getElementById('maCarb').value)||0,
-    fat:parseFloat(document.getElementById('maFat').value)||0,source:'✍️ Manual Entry'});
+  const food = {
+    name,
+    brand: document.getElementById('maBrand').value.trim() || 'Generic',
+    barcode: document.getElementById('maBarcode').value,
+    calories: parseFloat(document.getElementById('maCal').value)||0,
+    protein: parseFloat(document.getElementById('maProt').value)||0,
+    carbs: parseFloat(document.getElementById('maCarb').value)||0,
+    fat: parseFloat(document.getElementById('maFat').value)||0,
+    source: '✍️ Manual Entry'
+  };
+
+  try {
+    // Save to server database products cache
+    await authFetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(food)
+    });
+  } catch (err) {
+    console.error('Error saving manual product to database', err);
+  }
+
+  setCurrent(food);
   document.getElementById('addCard').style.display='none';
   tag('t6','hit'); showErr('');
 }
 
+/* ── Add Food Manually Modal ── */
+function openAddFoodModal() {
+  document.getElementById('addFoodModal').classList.add('on');
+  document.getElementById('manualFoodDate').value = new Date().toLocaleDateString('en-CA');
+  document.getElementById('manualFoodName').value = '';
+  document.getElementById('manualFoodBrand').value = '';
+  document.getElementById('manualFoodCal').value = '';
+  document.getElementById('manualFoodProt').value = '';
+  document.getElementById('manualFoodCarb').value = '';
+  document.getElementById('manualFoodFat').value = '';
+  document.getElementById('manualFoodServings').value = '1';
+}
+
+// Close manual add modal
+function closeAddFoodModal() {
+  document.getElementById('addFoodModal').classList.remove('on');
+}
+
+async function submitManualFood() {
+  const name = document.getElementById('manualFoodName').value.trim();
+  const brand = document.getElementById('manualFoodBrand').value.trim() || 'Homemade';
+  const calories = parseFloat(document.getElementById('manualFoodCal').value);
+  const protein = parseFloat(document.getElementById('manualFoodProt').value) || 0;
+  const carbs = parseFloat(document.getElementById('manualFoodCarb').value) || 0;
+  const fat = parseFloat(document.getElementById('manualFoodFat').value) || 0;
+  const servingsVal = parseFloat(document.getElementById('manualFoodServings').value) || 1;
+  const date = document.getElementById('manualFoodDate').value || new Date().toLocaleDateString('en-CA');
+
+  if (!name || isNaN(calories)) {
+    toast('Please enter Food Name and Calories', true);
+    return;
+  }
+
+  try {
+    const barcode = 'manual_' + Date.now();
+    await authFetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ barcode, name, brand, calories, protein, carbs, fat })
+    });
+
+    const logRes = await authFetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        barcode, name, brand, source: '✍️ Manual Entry',
+        calories, protein, carbs, fat, servings: servingsVal,
+        log_date: date
+      })
+    });
+
+    if (logRes.ok) {
+      toast('✅ Food saved and logged!');
+      confetti();
+      closeAddFoodModal();
+      await loadTodayLog();
+      if (document.getElementById('histBody').classList.contains('on')) {
+        await loadHistoryDates();
+        if (activeHistoryDate) {
+          await loadHistoryLog(activeHistoryDate);
+        } else {
+          await selectHistoryDate(date);
+        }
+      }
+    } else {
+      toast('❌ Failed to log food', true);
+    }
+  } catch (err) {
+    toast('❌ Error saving food', true);
+  }
+}
+
+/* ── History Panel ── */
+let loadingHistory = false;
+async function toggleHistory() {
+  const body = document.getElementById('histBody');
+  const toggle = document.getElementById('histToggle');
+  body.classList.toggle('on');
+  toggle.classList.toggle('open');
+  if (body.classList.contains('on')) {
+    await loadHistoryDates();
+  }
+}
+
+async function loadHistoryDates() {
+  if (loadingHistory) return;
+  loadingHistory = true;
+  try {
+    const res = await authFetch('/api/log/dates');
+    const data = await res.json();
+    const container = document.getElementById('datePills');
+    if (!data.dates || data.dates.length === 0) {
+      container.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:6px 0;text-align:center;width:100%">No history logged yet</div>';
+      document.getElementById('histLogList').innerHTML = '<div class="hist-empty">No entries found</div>';
+      loadingHistory = false;
+      return;
+    }
+    
+    container.innerHTML = data.dates.map(d => {
+      const isActive = d === activeHistoryDate ? ' active' : '';
+      const dateObj = new Date(d + 'T00:00:00'); // enforce local timezone parsing
+      const displayDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return `<div class="date-pill${isActive}" onclick="selectHistoryDate('${d}')">${displayDate}</div>`;
+    }).join('');
+
+    if (!activeHistoryDate && data.dates.length > 0) {
+      activeHistoryDate = data.dates[0];
+      // render active styling on the first pill
+      const firstPill = container.querySelector('.date-pill');
+      if (firstPill) firstPill.classList.add('active');
+      await loadHistoryLog(activeHistoryDate);
+    }
+  } catch (err) {
+    console.error('Failed to load history dates', err);
+  } finally {
+    loadingHistory = false;
+  }
+}
+
+async function selectHistoryDate(date) {
+  activeHistoryDate = date;
+  // Update class lists directly for speed, then load logs
+  const pills = document.querySelectorAll('.date-pill');
+  pills.forEach(p => p.classList.remove('active'));
+  
+  // Find pill with matching onclick attribute or re-render
+  await loadHistoryDates();
+  await loadHistoryLog(date);
+}
+
+async function loadHistoryLog(date) {
+  try {
+    const res = await authFetch(`/api/log?date=${date}`);
+    const data = await res.json();
+    
+    let totalCal = 0, totalProt = 0, totalCarb = 0, totalFat = 0;
+    const list = document.getElementById('histLogList');
+    
+    if (!data.entries || data.entries.length === 0) {
+      list.innerHTML = '<div class="hist-empty">No foods logged on this day</div>';
+      document.getElementById('histCal').textContent = '0';
+      document.getElementById('histProt').textContent = '0g';
+      document.getElementById('histCarb').textContent = '0g';
+      document.getElementById('histFat').textContent = '0g';
+      return;
+    }
+
+    data.entries.forEach(e => {
+      totalCal += e.logged_cal;
+      totalProt += e.protein * e.servings;
+      totalCarb += e.carbs * e.servings;
+      totalFat += e.fat * e.servings;
+    });
+
+    document.getElementById('histCal').textContent = Math.round(totalCal);
+    document.getElementById('histProt').textContent = totalProt.toFixed(1) + 'g';
+    document.getElementById('histCarb').textContent = totalCarb.toFixed(1) + 'g';
+    document.getElementById('histFat').textContent = totalFat.toFixed(1) + 'g';
+
+    list.innerHTML = data.entries.map(e => `
+      <div class="litem">
+        <div class="ll"><div class="lem">${emo(e.name)}</div>
+          <div><div class="lname">${e.name}</div><div class="lmeta">${e.servings}× · ${e.log_time} · ${e.source}</div></div>
+        </div>
+        <div class="lr"><div class="lcal">${e.logged_cal} kcal</div>
+          <button class="delbtn" onclick="deleteHistoryEntry(${e.id}, '${date}')">✕</button>
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    console.error('Failed to load history log', err);
+  }
+}
+
+async function deleteHistoryEntry(id, date) {
+  try {
+    const res = await authFetch(`/api/log/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      toast('🗑️ Removed', true);
+      await loadTodayLog();
+      await loadHistoryDates();
+      await loadHistoryLog(date);
+    } else {
+      toast('❌ Failed to delete entry', true);
+    }
+  } catch (err) {
+    toast('❌ Network error', true);
+  }
+}
+
 /* ── Goal ── */
 function toggleGoal(){const ed=document.getElementById('ged');ed.classList.toggle('on');if(ed.classList.contains('on'))document.getElementById('goalInput').focus();}
-function saveGoal(){
+
+async function saveGoal(){
   const v=parseInt(document.getElementById('goalInput').value);
   if(!v||v<100){toast('Enter a valid goal',true);return;}
-  dailyGoal=v; localStorage.setItem('de_goal',v);
-  document.getElementById('goalDisp').textContent=v;
-  document.getElementById('ged').classList.remove('on');
-  renderLog(); toast(`🎯 Goal set to ${v} kcal!`);
+  try {
+    const res = await authFetch('/api/goal', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal: v })
+    });
+    if (res.ok) {
+      dailyGoal = v;
+      document.getElementById('goalDisp').textContent=v;
+      document.getElementById('ged').classList.remove('on');
+      renderLog(); toast(`🎯 Goal set to ${v} kcal!`);
+    } else {
+      toast('❌ Failed to save goal to server', true);
+    }
+  } catch (err) {
+    toast('❌ Network error', true);
+  }
 }
 
 /* ── Helpers ── */

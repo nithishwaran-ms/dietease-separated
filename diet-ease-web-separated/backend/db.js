@@ -9,9 +9,8 @@ const DATA_FILE = path.join(__dirname, 'dietease-data.json');
 
 // ── Default structure ─────────────────────────────────────────────────────────
 const DEFAULT = {
-  settings: { daily_goal: 2000 },
+  users: {},      // email -> { password, settings: { daily_goal }, food_log: [] }
   products: {},   // barcode -> product object
-  food_log: [],   // array of log entries
 };
 
 // ── Built-in products ─────────────────────────────────────────────────────────
@@ -46,13 +45,34 @@ function load() {
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     const data = JSON.parse(raw);
+    
+    // Check if migration to users list is needed
+    if (!data.users) {
+      data.users = {};
+      // If there's old flat data, migrate it to guest@dietease.com
+      if (data.food_log || data.settings) {
+        data.users['guest@dietease.com'] = {
+          password: 'password', // default password
+          settings: data.settings || { daily_goal: 2000 },
+          food_log: data.food_log || []
+        };
+      }
+    }
+    
+    // Clean up legacy flat keys
+    delete data.food_log;
+    delete data.settings;
+    
     // Merge built-ins (don't overwrite user-cached products)
+    if (!data.products) data.products = {};
     for (const [k, v] of Object.entries(BUILTIN)) {
       if (!data.products[k]) data.products[k] = { ...v, barcode: k };
     }
+    
+    save(data);
     return data;
   } catch {
-    const data = { ...DEFAULT, products: {} };
+    const data = { users: {}, products: {} };
     for (const [k, v] of Object.entries(BUILTIN)) {
       data.products[k] = { ...v, barcode: k };
     }

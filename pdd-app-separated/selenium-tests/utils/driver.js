@@ -4,7 +4,7 @@
 const { Builder, By, until, Key } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 
-const BASE_URL = 'https://dietease-plus.surge.sh';
+const BASE_URL = 'http://localhost:3000';
 const DEFAULT_TIMEOUT = 15000;
 
 async function buildDriver(headless = false) {
@@ -32,6 +32,10 @@ async function buildDriver(headless = false) {
 
 async function navigateTo(driver, path = '') {
   await driver.get(BASE_URL + path);
+  try {
+    await driver.executeScript("localStorage.setItem('de_user', 'guest@dietease.com');");
+    await driver.get(BASE_URL + path);
+  } catch (_) {}
   // Wait for the app to load
   await driver.wait(until.elementLocated(By.className('logo')), DEFAULT_TIMEOUT);
 }

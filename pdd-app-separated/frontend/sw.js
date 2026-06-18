@@ -3,10 +3,10 @@
  * Enables: Offline use, fast loading, installable PWA
  */
 
-const CACHE_NAME  = 'dietease-v1';
+const CACHE_NAME  = 'dietease-v2';   // bumped from v1 → forces stale cache eviction
 const OFFLINE_URL = '/';
 
-// Files to cache for offline use
+// Files to cache for offline use (app shell only — NO API responses)
 const PRECACHE = [
   '/',
   '/index.html',
@@ -39,7 +39,7 @@ self.addEventListener('activate', event => {
   );
 });
 
-/* ── Fetch: Cache-first for app shell, Network-first for API ── */
+/* ── Fetch: Cache-first for app shell, Network-only for API ── */
 self.addEventListener('fetch', event => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
@@ -54,12 +54,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // App shell — Cache first, fallback to network
+  // API calls — ALWAYS go to network, never cache.
+  // Caching /api/* responses would serve stale food-log data after writes.
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(event.request).catch(() => new Response(
+        JSON.stringify({ error: 'offline' }), { status: 503, headers: { 'Content-Type': 'application/json' } }
+      ))
+    );
+    return;
+  }
+
+  // App shell assets — Cache first, fallback to network
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
       return fetch(event.request).then(response => {
-        // Cache successful responses
+        // Only cache static assets (not dynamic/API responses)
         if (response && response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
