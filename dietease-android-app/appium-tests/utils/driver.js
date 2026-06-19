@@ -5,6 +5,10 @@ const { remote } = require('webdriverio');
 const path = require('path');
 
 const DEFAULT_TIMEOUT = 10000;
+
+// Default test credentials (guest account auto-registered on first launch)
+const TEST_EMAIL    = 'guest@dietease.com';
+const TEST_PASSWORD = 'password';
 const APP_PACKAGE = 'com.example.dieteasy';
 
 async function buildDriver() {
@@ -33,12 +37,50 @@ async function buildDriver() {
 }
 
 /**
- * Resets the application state by restarting it
+ * Logs in with the guest test account.
+ * Call this whenever the app is freshly launched (login screen is showing).
+ */
+async function loginToApp(driver) {
+  // Check if login screen is visible by looking for the Log In button
+  try {
+    const loginBtn = await driver.$('android=new UiSelector().text("Log In")');
+    const loginVisible = await loginBtn.isExisting();
+    if (!loginVisible) return; // already logged in, nothing to do
+
+    // Fill email
+    const emailField = await driver.$('android=new UiSelector().className("android.widget.EditText").instance(0)');
+    await emailField.waitForExist({ timeout: 5000 });
+    await emailField.click();
+    await emailField.clearValue();
+    await emailField.setValue(TEST_EMAIL);
+
+    // Fill password
+    const passwordField = await driver.$('android=new UiSelector().className("android.widget.EditText").instance(1)');
+    await passwordField.waitForExist({ timeout: 5000 });
+    await passwordField.click();
+    await passwordField.clearValue();
+    await passwordField.setValue(TEST_PASSWORD);
+
+    // Dismiss keyboard and tap Log In
+    await driver.hideKeyboard();
+    await driver.pause(500);
+    await loginBtn.click();
+
+    // Wait for main app to load (nav tabs appear)
+    await driver.pause(2000);
+  } catch (e) {
+    // If login screen not found or already past it — silently continue
+  }
+}
+
+/**
+ * Resets the application state by restarting it, then logs in
  */
 async function navigateTo(driver) {
   await driver.terminateApp(APP_PACKAGE);
   await driver.activateApp(APP_PACKAGE);
   await driver.pause(2000);
+  await loginToApp(driver);
 }
 
 /**
@@ -82,6 +124,7 @@ async function findByTextContains(driver, text) {
 
 module.exports = {
   buildDriver,
+  loginToApp,
   navigateTo,
   clickTab,
   findByText,

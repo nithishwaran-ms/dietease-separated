@@ -12,15 +12,15 @@ const path = require('path');
 const fs   = require('fs');
 const net  = require('net');
 const { spawn } = require('child_process');
-const { buildDriver } = require('./utils/driver');
+const { buildDriver, loginToApp } = require('./utils/driver');
 const { generateReport } = require('./utils/excel-reporter');
 
 const REPORTS_DIR = path.join(__dirname, 'reports');
 
 // All test modules
 const TEST_MODULES = [
-  { file: './tests/01_page_load',      label: '01 — Page Load' },
-  { file: './tests/02_navigation',     label: '02 — Navigation' },
+  { file: './tests/01_page_load',       label: '01 — Page Load' },
+  { file: './tests/02_navigation',      label: '02 — Navigation' },
   { file: './tests/03_barcode_lookup',  label: '03 — Barcode Lookup' },
   { file: './tests/04_food_logging',    label: '04 — Food Logging' },
   { file: './tests/05_delete_entry',    label: '05 — Delete Entry' },
@@ -139,7 +139,12 @@ async function main() {
     appiumProc = await startAppiumServer();
     log(`${C.cyan}▶ Connecting to mobile driver session…${C.reset}`);
     driver = await buildDriver();
-    log(`${C.green}✓ Driver session established${C.reset}\n`);
+    log(`${C.green}✓ Driver session established${C.reset}`);
+
+    // Login with guest account — app now starts on LoginScreen
+    log(`${C.cyan}▶ Logging in as guest@dietease.com…${C.reset}`);
+    await loginToApp(driver);
+    log(`${C.green}✓ Logged in successfully${C.reset}\n`);
 
     for (const mod of TEST_MODULES) {
       log(`${C.bold}${C.cyan}━━ ${mod.label} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C.reset}`);
