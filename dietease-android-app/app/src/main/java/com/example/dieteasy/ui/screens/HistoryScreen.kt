@@ -36,6 +36,16 @@ fun HistoryScreen(viewModel: MainViewModel) {
                 .padding(vertical = 8.dp)
         ) {
             Text(
+                "DietEase+",
+                modifier = Modifier.padding(horizontal = 10.dp),
+                style = MaterialTheme.typography.titleSmall.copy(
+                    brush = Brush.horizontalGradient(listOf(AccentGreen, AccentCyan)),
+                    fontWeight = FontWeight.ExtraBold
+                ),
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
                 "📅 History",
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 color = TextMuted,
@@ -97,6 +107,12 @@ fun HistoryScreen(viewModel: MainViewModel) {
                     }
                 }
             } else {
+                Text(
+                    "Logged Food",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = TextPrimary,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
                 // Summary row
                 val totalCal  = selectedLog.sumOf { it.loggedCalories }
                 val totalProt = selectedLog.sumOf { (it.protein * it.servings).toDouble() }

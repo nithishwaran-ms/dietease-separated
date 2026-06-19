@@ -48,7 +48,16 @@ fun ProductsScreen(viewModel: MainViewModel, onNavigateToScan: () -> Unit) {
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
+            Text(
+                "DietEase+",
+                style = MaterialTheme.typography.titleSmall.copy(
+                    brush = Brush.horizontalGradient(listOf(AccentGreen, AccentCyan)),
+                    fontWeight = FontWeight.ExtraBold
+                )
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Text("🛒 Product Database", style = MaterialTheme.typography.headlineMedium)
+
             Text("${products.size} products available", color = TextMuted, fontSize = 13.sp)
 
             Spacer(modifier = Modifier.height(12.dp))

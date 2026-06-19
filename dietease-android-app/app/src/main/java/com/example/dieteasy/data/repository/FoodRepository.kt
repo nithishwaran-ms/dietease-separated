@@ -50,12 +50,19 @@ class FoodRepository(context: Context) {
     private val storage = FoodLogStorage(context)
 
     private val api: OpenFoodFactsApi by lazy {
+        val okHttpClient = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+
         Retrofit.Builder()
             .baseUrl("https://world.openfoodfacts.org/")
+            .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(OpenFoodFactsApi::class.java)
     }
+
 
     private val prefs = context.getSharedPreferences("dietease_products", Context.MODE_PRIVATE)
     private val gson = Gson()

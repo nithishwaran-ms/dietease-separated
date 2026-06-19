@@ -1,5 +1,7 @@
 package com.example.dieteasy.ui.screens
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import android.Manifest
 import android.util.Size
 import androidx.camera.core.CameraSelector
@@ -102,15 +104,20 @@ fun ScanScreen(viewModel: MainViewModel) {
                     if (cameraPermission.status.isGranted) cameraActive = true
                     else cameraPermission.launchPermissionRequest()
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .semantics { contentDescription = "Camera" },
                 colors   = ButtonDefaults.buttonColors(containerColor = DarkCard),
                 shape    = RoundedCornerShape(12.dp),
                 border   = BorderStroke(1.dp, AccentGreen.copy(alpha = 0.4f))
             ) {
-                Icon(Icons.Default.CameraAlt, contentDescription = null, tint = AccentGreen)
+
+                Icon(Icons.Default.CameraAlt, contentDescription = "Camera", tint = AccentGreen)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("📷 Start Camera Scanner", color = TextPrimary)
             }
+
         } else {
             CameraPreview(
                 modifier = Modifier

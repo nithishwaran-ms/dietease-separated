@@ -44,6 +44,14 @@ fun TodayScreen(viewModel: MainViewModel) {
             color    = DarkSurface
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    "DietEase+",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        brush = Brush.horizontalGradient(listOf(AccentGreen, AccentCyan)),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -53,6 +61,7 @@ fun TodayScreen(viewModel: MainViewModel) {
                         Text("📅 Today", style = MaterialTheme.typography.headlineMedium)
                         Text(today, color = TextMuted, fontSize = 13.sp)
                     }
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = { showGoalDial = true; goalInput = dailyGoal.toString() },

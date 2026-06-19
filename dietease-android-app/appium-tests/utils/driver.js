@@ -28,6 +28,8 @@ async function buildDriver() {
     'appium:autoGrantPermissions': true,
     // Only use hardware keyboard on real device; emulator needs soft keyboard for setValue
     'appium:connectHardwareKeyboard': !IS_EMULATOR,
+    'appium:unicodeKeyboard': true,
+    'appium:resetKeyboard': true,
   };
   const opts = {
     hostname: '127.0.0.1',
@@ -38,8 +40,26 @@ async function buildDriver() {
   };
   
   const driver = await remote(opts);
+  
+  // Overwrite clearValue to ensure fields are fully cleared in Jetpack Compose
+  driver.overwriteCommand('clearValue', async function (origClearValue) {
+    try {
+      await this.click();
+      await origClearValue();
+      const text = await this.getText();
+      if (text && text.length > 0) {
+        for (let i = 0; i < text.length + 3; i++) {
+          await driver.pressKeyCode(67); // Backspace keycode
+        }
+      }
+    } catch (_) {
+      await origClearValue();
+    }
+  }, true);
+
   return driver;
 }
+
 
 /**
  * Logs in with the guest test account.

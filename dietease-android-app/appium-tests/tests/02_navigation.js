@@ -136,10 +136,11 @@ module.exports = async function runTests(driver) {
   try {
     await clickTab(driver, 'products');
     await driver.pause(500);
-    const scroll = await driver.$('android.widget.ScrollView');
+    const scroll = await driver.$('android=new UiSelector().scrollable(true)');
     const pass = await scroll.isExisting();
     push('T14 Products Screen Has Scrollable View', pass, Date.now()-t0, pass?'Scroll view found':'No scroll view found');
   } catch(e) { push('T14 Products Screen Has Scrollable View', false, Date.now()-t0, e.message); }
+
 
   // T15 — Back button or system nav doesn't exit app
   t0 = Date.now();
