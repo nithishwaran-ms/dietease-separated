@@ -1,5 +1,6 @@
 package com.example.dieteasy.ui.screens
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import com.example.dieteasy.ui.theme.*
 import com.example.dieteasy.viewmodel.MainViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+
 
 @Composable
 fun HistoryScreen(viewModel: MainViewModel) {

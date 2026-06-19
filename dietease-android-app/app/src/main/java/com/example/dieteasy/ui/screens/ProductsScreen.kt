@@ -1,5 +1,6 @@
 package com.example.dieteasy.ui.screens
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.example.dieteasy.data.repository.FoodItem
 import com.example.dieteasy.ui.theme.*
 import com.example.dieteasy.viewmodel.MainViewModel
+
 
 @Composable
 fun ProductsScreen(viewModel: MainViewModel, onNavigateToScan: () -> Unit) {
