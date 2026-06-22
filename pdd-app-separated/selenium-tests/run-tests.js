@@ -74,6 +74,7 @@ async function main() {
   let driver;
   const allResults = [];
   const suiteStart = Date.now();
+  let fatalError = null;
 
   try {
     log(`${C.cyan}▶ Starting Chrome WebDriver…${C.reset}`);
@@ -106,10 +107,24 @@ async function main() {
 
   } catch (err) {
     log(`${C.red}Fatal error: ${err.message}${C.reset}`);
+    fatalError = err;
   } finally {
     if (driver) {
       try { await driver.quit(); } catch (_) {}
     }
+  }
+
+  if (fatalError) {
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      try {
+        let md = `## 🥗 DietEase+ Web E2E Test Summary\n\n`;
+        md += `### :x: Fatal Suite Error\n\n`;
+        md += `**Error message:** \`${fatalError.message}\`\n\n`;
+        md += `\`\`\`\n${fatalError.stack}\n\`\`\`\n`;
+        fs.writeFileSync(process.env.GITHUB_STEP_SUMMARY, md, 'utf8');
+      } catch (_) {}
+    }
+    process.exit(1);
   }
 
   /* ── Print Summary ── */
