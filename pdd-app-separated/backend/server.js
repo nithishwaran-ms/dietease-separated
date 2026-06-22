@@ -104,11 +104,12 @@ async function lookupUPC(code) {
   } catch { return null; }
 }
 async function fetchFromWeb(code) {
-  const [r1,r2,r3,r4] = await Promise.allSettled([
+  const [r1,r2,r3,r4,r5] = await Promise.allSettled([
     lookupOFF('world', code), lookupOFF('in', code),
-    lookupUPC(code),          lookupOFF('fr', code),
+    lookupOFF('us', code),    lookupOFF('fr', code),
+    lookupUPC(code),
   ]);
-  const all  = [r1,r2,r3,r4].map(r => r.value).filter(Boolean);
+  const all  = [r1,r2,r3,r4,r5].map(r => r.value).filter(Boolean);
   return all.find(f => f.calories > 0) || all[0] || null;
 }
 
