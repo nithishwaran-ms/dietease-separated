@@ -39,12 +39,12 @@ async function convertLatest() {
     // Row 8: Passed | Val
     // Row 9: Failed | Val
     // Row 10: Pass Rate | Val
-    genDate = summarySheet.getRow(4).getCell(2).value || '';
-    website = summarySheet.getRow(5).getCell(2).value || '';
-    total = summarySheet.getRow(7).getCell(2).value || 0;
-    passed = summarySheet.getRow(8).getCell(2).value || 0;
-    failed = summarySheet.getRow(9).getCell(2).value || 0;
-    passRate = summarySheet.getRow(10).getCell(2).value || '0%';
+    genDate = summarySheet.getRow(3).getCell(2).value || '';
+    website = summarySheet.getRow(4).getCell(2).value || '';
+    total = summarySheet.getRow(6).getCell(2).value || 0;
+    passed = summarySheet.getRow(7).getCell(2).value || 0;
+    failed = summarySheet.getRow(8).getCell(2).value || 0;
+    passRate = summarySheet.getRow(9).getCell(2).value || '0%';
   }
 
   // Read Sheet 1: Test Results
@@ -419,6 +419,33 @@ async function convertLatest() {
   const htmlFile = path.join(reportsDir, 'E2E_Test_Report.html');
   fs.writeFileSync(htmlFile, htmlContent, 'utf8');
   console.log(`HTML report generated: ${htmlFile}`);
+
+  // Write to GitHub Step Summary if running in CI
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    try {
+      let md = `## 🥗 DietEase+ Web E2E Test Summary\n\n`;
+      md += `* **Total Tests:** ${total}\n`;
+      md += `* **Passed:** :white_check_mark: ${passed}\n`;
+      md += `* **Failed:** :x: ${failed}\n`;
+      md += `* **Pass Rate:** ${passRate}\n\n`;
+      
+      if (failed > 0) {
+        md += `### :x: Failed Test Cases\n\n`;
+        md += `| S.No | Module | Test Case | Reason |\n`;
+        md += `|---|---|---|---|\n`;
+        results.filter(r => r.status === 'FAIL').forEach(r => {
+          md += `| ${r.sno} | ${r.module} | ${r.test} | ${r.remark || ''} |\n`;
+        });
+        md += `\n`;
+      } else {
+        md += `### :white_check_mark: All Web Tests Passed Successfully!\n\n`;
+      }
+      fs.writeFileSync(process.env.GITHUB_STEP_SUMMARY, md, 'utf8');
+      console.log('GitHub Actions Step Summary written successfully.');
+    } catch (err) {
+      console.error(`Failed to write GitHub Step Summary: ${err.message}`);
+    }
+  }
 }
 
 convertLatest().catch(err => {

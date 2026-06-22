@@ -213,6 +213,33 @@ async function main() {
     log(`${C.red}❌ Failed to generate report: ${err.message}${C.reset}`);
   }
 
+  // Write to GitHub Step Summary if running in CI
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    try {
+      let md = `## 🥗 DietEase+ Appium Mobile E2E Test Summary\n\n`;
+      md += `* **Total Tests:** ${total}\n`;
+      md += `* **Passed:** :white_check_mark: ${passed}\n`;
+      md += `* **Failed:** :x: ${failed}\n`;
+      md += `* **Pass Rate:** ${rate}%\n\n`;
+      
+      if (failed > 0) {
+        md += `### :x: Failed Test Cases\n\n`;
+        md += `| Category | Test Case | Reason |\n`;
+        md += `|---|---|---|\n`;
+        allResults.filter(r => r.status === 'FAIL').forEach(r => {
+          md += `| ${r.category} | ${r.name} | ${r.error || ''} |\n`;
+        });
+        md += `\n`;
+      } else {
+        md += `### :white_check_mark: All Appium Tests Passed Successfully!\n\n`;
+      }
+      fs.writeFileSync(process.env.GITHUB_STEP_SUMMARY, md, 'utf8');
+      log('GitHub Actions Step Summary written successfully.');
+    } catch (err) {
+      log(`${C.red}Failed to write GitHub Step Summary: ${err.message}${C.reset}`);
+    }
+  }
+
   log('');
   process.exit(failed > 0 ? 1 : 0);
 }
