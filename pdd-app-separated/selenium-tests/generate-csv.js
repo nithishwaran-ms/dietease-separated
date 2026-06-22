@@ -13,7 +13,8 @@ if (!fs.existsSync(REPORTS)) fs.mkdirSync(REPORTS, { recursive: true });
 const TEST_FILES = [
   '01_page_load','02_navigation','03_barcode_lookup',
   '04_food_logging','05_delete_entry','06_goal_setting',
-  '07_history','08_products','09_scan_mode','10_manual_entry'
+  '07_history','08_products','09_scan_mode','10_manual_entry',
+  '11_ui_styling'
 ];
 
 (async () => {

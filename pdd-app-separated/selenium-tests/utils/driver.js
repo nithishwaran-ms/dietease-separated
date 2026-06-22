@@ -4,7 +4,7 @@
 const { Builder, By, until, Key } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'https://dietease-plus.surge.sh';
 const DEFAULT_TIMEOUT = 15000;
 
 async function buildDriver(headless = false) {
@@ -30,14 +30,20 @@ async function buildDriver(headless = false) {
   return driver;
 }
 
-async function navigateTo(driver, path = '') {
-  await driver.get(BASE_URL + path);
-  try {
-    await driver.executeScript("localStorage.setItem('de_user', 'guest@dietease.com');");
-    await driver.get(BASE_URL + path);
-  } catch (_) {}
-  // Wait for the app to load
-  await driver.wait(until.elementLocated(By.className('logo')), DEFAULT_TIMEOUT);
+async function navigateTo(driver, path = '', timeout = 30000) {
+  // Retry once on slow CDN loads (e.g. Surge cold start)
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await driver.get(BASE_URL + path);
+      // Wait for the app shell (.logo) to be in the DOM
+      await driver.wait(until.elementLocated(By.className('logo')), timeout);
+      return; // success
+    } catch (err) {
+      if (attempt === 2) throw err; // propagate on second failure
+      // Short pause before retry
+      await driver.sleep(1500);
+    }
+  }
 }
 
 async function clickTab(driver, tabName) {

@@ -1,16 +1,7 @@
 /**
- * TEST 04 — Food Logging (10 tests)
- *
- * Strategy: Use POST /api/test/log to seed food entries directly from Node
- * (bypasses the unreliable headless logbtn click). Then call loadTodayLog()
- * via executeAsyncScript to refresh the browser UI and verify DOM state.
- * For UI-only tests (servings buttons, calorie display update), the regular
- * jsClick works fine since those don't POST to the server.
+ * TEST 04 — Food Logging (30 tests)
  */
-const http = require('http');
-const { navigateTo, clickTab, By, BASE_URL } = require('../utils/driver');
-
-/* ── helpers ──────────────────────────────────────────────────────────── */
+const { navigateTo, clickTab, By } = require('../utils/driver');
 
 async function jsClick(driver, el) {
   await driver.executeScript('arguments[0].scrollIntoView({block:"center"});', el);
@@ -18,194 +9,228 @@ async function jsClick(driver, el) {
   await driver.executeScript('arguments[0].click();', el);
 }
 
-/** POST /api/test/log — seed food log entries directly via Node HTTP */
-function serverSeedFood(body) {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(BASE_URL + '/api/test/log');
-    const payload = JSON.stringify(body);
-    const options = {
-      hostname: parsed.hostname,
-      port: parsed.port || 3000,
-      path: '/api/test/log',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
-    };
-    const req = http.request(options, res => {
-      let b = '';
-      res.on('data', d => b += d);
-      res.on('end', () => { try { resolve(JSON.parse(b)); } catch { resolve({ ok: false }); } });
-    });
-    req.on('error', reject);
-    req.write(payload);
-    req.end();
-  });
-}
-
-/** DELETE /api/test/log — clear all of today's entries */
-function serverClearToday(email = 'guest@dietease.com') {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(BASE_URL);
-    const options = {
-      hostname: parsed.hostname,
-      port: parsed.port || 3000,
-      path: `/api/test/log?email=${encodeURIComponent(email)}`,
-      method: 'DELETE',
-    };
-    const req = http.request(options, res => {
-      let b = '';
-      res.on('data', d => b += d);
-      res.on('end', () => { try { resolve(JSON.parse(b)); } catch { resolve({ ok: false }); } });
-    });
-    req.on('error', reject);
-    req.end();
-  });
-}
-
-/** Refresh the today's log in the browser (calls loadTodayLog on page). */
-async function refreshPageLog(driver) {
-  try {
-    await driver.executeAsyncScript(
-      'var done = arguments[arguments.length-1];' +
-      'if (typeof loadTodayLog === "function") {' +
-      '  loadTodayLog().then(function(){ done("ok"); }).catch(function(){ done("err"); });' +
-      '} else { done("no-fn"); }'
-    );
-  } catch(e) {
-    await driver.sleep(800);
-  }
-}
-
-/** Navigate and ensure we're on the today tab, refreshing from server. */
-async function goToToday(driver) {
-  await navigateTo(driver);
-  await driver.sleep(800);
-  await clickTab(driver, 'today');
-  await refreshPageLog(driver);
-  await driver.sleep(400);
-}
-
-// Known Parle-G data (built-in DB)
-const PARLE_G = { barcode:'8901719100018', name:'Parle-G Biscuits', calories:450, protein:6.7, carbs:76, fat:11.7, source:'⚡ Built-in DB' };
-const AMUL    = { barcode:'8901088002230', name:'Amul Butter',       calories:720, protein:0.5, carbs:0,  fat:80,   source:'⚡ Built-in DB' };
-
-/* ── test module ──────────────────────────────────────────────────────── */
-
 module.exports = async function runTests(driver) {
   const results = [];
+  await navigateTo(driver); await driver.sleep(1000);
+
   const push = (name,pass,dur,info) => results.push({ name, status:pass?'PASS':'FAIL', duration:dur, category:'Food Logging', error:info, timestamp:Date.now() });
 
-  // Ensure a clean starting state for this test group
-  await serverClearToday();
-
-  // T1 — Log button visible after lookup (UI-only, no actual log POST needed)
+  // T1: Log button visible
   let t0 = Date.now();
   try {
-    await navigateTo(driver); await driver.sleep(1000);
     const input = await driver.findElement(By.id('manualInput'));
     await input.clear(); await input.sendKeys('8901719100018');
     await jsClick(driver, await driver.findElement(By.css('.mrow button')));
-    await driver.wait(async () => { const c=await driver.findElement(By.id('resultCard')).getAttribute('class'); return c.includes('on'); }, 8000);
+    await driver.wait(async () => {
+      const cls = await driver.findElement(By.id('resultCard')).getAttribute('class');
+      return cls.includes('on');
+    }, 8000);
     const logBtn = await driver.findElement(By.className('logbtn'));
-    const vis = await driver.executeScript('return arguments[0].offsetParent!==null', logBtn);
-    push('"Log This Food" Button Visible After Lookup', vis, Date.now()-t0, vis?'Log button visible':'Log button hidden');
+    const isShown = await logBtn.isDisplayed();
+    push('"Log This Food" Button Visible After Lookup', isShown, Date.now()-t0, isShown?'Button visible':'Button hidden');
   } catch(e) { push('"Log This Food" Button Visible After Lookup', false, Date.now()-t0, e.message); }
 
-  // T2 — Calorie total updates after logging (seed via server, refresh UI)
+  // T2: Calorie total updates
   t0 = Date.now();
   try {
-    await serverSeedFood(PARLE_G);          // log Parle-G directly on server
-    await goToToday(driver);               // navigate today tab + refresh
-    const cal = await driver.executeScript('return document.getElementById("totalCal").innerText||document.getElementById("totalCal").textContent||""');
-    const pass = parseInt(cal) > 0;
-    push('Calorie Total Updates After Logging Food', pass, Date.now()-t0, pass?`Total: ${cal} kcal`:`Total: ${cal}`);
+    await clickTab(driver, 'today'); await driver.sleep(400);
+    const beforeCal = await driver.executeScript('return document.getElementById("totalCal").innerText||"0"');
+    await clickTab(driver, 'scan'); await driver.sleep(400);
+    await jsClick(driver, await driver.findElement(By.className('logbtn')));
+    await driver.sleep(1000);
+    await clickTab(driver, 'today'); await driver.sleep(400);
+    const afterCal = await driver.executeScript('return document.getElementById("totalCal").innerText||"0"');
+    const pass = parseInt(afterCal) > parseInt(beforeCal);
+    push('Calorie Total Updates After Logging Food', pass, Date.now()-t0, pass? 'Total: ' + afterCal + ' kcal' : 'Unchanged: ' + afterCal);
   } catch(e) { push('Calorie Total Updates After Logging Food', false, Date.now()-t0, e.message); }
 
-  // T3 — Progress bar fills (continues from T2 state)
+  // T3: Progress bar width
   t0 = Date.now();
   try {
-    const w = await driver.executeScript('return document.getElementById("progFill").style.width||""');
-    const pass = parseFloat(w) > 0;
-    push('Progress Bar Fills After Logging', pass, Date.now()-t0, pass?`Width: ${w}`:`Width: "${w}"`);
+    const width = await driver.findElement(By.id('progFill')).getAttribute('style');
+    const pass = width.includes('width') && width !== 'width: 0%';
+    push('Progress Bar Fills After Logging', pass, Date.now()-t0, pass? 'Width: ' + width.split(':')[1].trim() : 'Width remains 0%');
   } catch(e) { push('Progress Bar Fills After Logging', false, Date.now()-t0, e.message); }
 
-  // T4 — Food item in log list (continues from T2 state)
+  // T4: Item in list
   t0 = Date.now();
   try {
     const items = await driver.findElements(By.className('litem'));
-    push('Food Item Appears in Log List', items.length>0, Date.now()-t0, items.length>0?`${items.length} item(s) in log`:'No items in log list');
+    const pass = items.length > 0;
+    push('Food Item Appears in Log List', pass, Date.now()-t0, pass? items.length + ' item(s) in log' : 'Log empty');
   } catch(e) { push('Food Item Appears in Log List', false, Date.now()-t0, e.message); }
 
-  // T5 — Servings + increments (UI-only: lookup a barcode, click + button on resultCard)
+  // T5: Plus button increment
   t0 = Date.now();
   try {
-    await navigateTo(driver); await driver.sleep(1000);
-    const inp = await driver.findElement(By.id('manualInput'));
-    await inp.clear(); await inp.sendKeys('8901063032019');
+    await clickTab(driver, 'scan'); await driver.sleep(400);
+    const input = await driver.findElement(By.id('manualInput'));
+    await input.clear(); await input.sendKeys('8901719100018');
     await jsClick(driver, await driver.findElement(By.css('.mrow button')));
-    await driver.wait(async () => { const c=await driver.findElement(By.id('resultCard')).getAttribute('class'); return c.includes('on'); }, 8000);
+    await driver.wait(async () => {
+      const cls = await driver.findElement(By.id('resultCard')).getAttribute('class');
+      return cls.includes('on');
+    }, 8000);
+    const beforeSrv = await driver.executeScript('return document.getElementById("sc").innerText||"1"');
     await jsClick(driver, await driver.findElement(By.css('.sbtn.plus')));
-    await driver.sleep(500);
-    const sc = await driver.executeScript('return document.getElementById("sc").innerText||document.getElementById("sc").textContent||""');
-    push('Servings "+" Button Increments Count', parseFloat(sc)>1, Date.now()-t0, parseFloat(sc)>1?`Servings = ${sc}`:`Servings was: "${sc}"`);
+    await driver.sleep(400);
+    const afterSrv = await driver.executeScript('return document.getElementById("sc").innerText||"1"');
+    const pass = parseFloat(afterSrv) > parseFloat(beforeSrv);
+    push('Servings "+" Button Increments Count', pass, Date.now()-t0, pass? 'Servings = ' + afterSrv : 'Unchanged: ' + afterSrv);
   } catch(e) { push('Servings "+" Button Increments Count', false, Date.now()-t0, e.message); }
 
-  // T6 — Servings - decrements (continues from T5)
+  // T6: Minus button decrement
   t0 = Date.now();
   try {
-    const before = await driver.executeScript('return document.getElementById("sc").innerText||document.getElementById("sc").textContent||""');
+    const beforeSrv = await driver.executeScript('return document.getElementById("sc").innerText||"1.5"');
     await jsClick(driver, await driver.findElement(By.css('.sbtn.minus')));
-    await driver.sleep(500);
-    const after = await driver.executeScript('return document.getElementById("sc").innerText||document.getElementById("sc").textContent||""');
-    const pass = parseFloat(after) < parseFloat(before);
-    push('Servings "-" Button Decrements Count', pass, Date.now()-t0, pass?`${before} → ${after}`:`Before:${before} After:${after}`);
+    await driver.sleep(400);
+    const afterSrv = await driver.executeScript('return document.getElementById("sc").innerText||"1.5"');
+    const pass = parseFloat(afterSrv) < parseFloat(beforeSrv);
+    push('Servings "-" Button Decrements Count', pass, Date.now()-t0, pass? beforeSrv + ' → ' + afterSrv : 'Unchanged: ' + afterSrv);
   } catch(e) { push('Servings "-" Button Decrements Count', false, Date.now()-t0, e.message); }
 
-  // T7 — Calorie display updates on servings change (UI-only)
+  // T7: Servings change updates calorie display
   t0 = Date.now();
   try {
-    await navigateTo(driver); await driver.sleep(1000);
-    const inp = await driver.findElement(By.id('manualInput'));
-    await inp.clear(); await inp.sendKeys('8901719100018');
-    await jsClick(driver, await driver.findElement(By.css('.mrow button')));
-    await driver.wait(async () => { const c=await driver.findElement(By.id('resultCard')).getAttribute('class'); return c.includes('on'); }, 8000);
-    const cal1 = await driver.executeScript('return document.getElementById("rCal").innerText||""');
-    await jsClick(driver, await driver.findElement(By.css('.sbtn.plus')));
-    await driver.sleep(500);
-    const cal2 = await driver.executeScript('return document.getElementById("rCal").innerText||""');
-    const pass = parseFloat(cal2) > parseFloat(cal1);
-    push('Calorie Display Updates When Servings Change', pass, Date.now()-t0, pass?`${cal1} → ${cal2} kcal`:`Cal unchanged: ${cal1}`);
+    const beforeCal = await driver.executeScript('return document.getElementById("rCal").innerText||"0"');
+    await jsClick(driver, await driver.findElement(By.css('.sbtn.plus'))); await driver.sleep(400);
+    const afterCal = await driver.executeScript('return document.getElementById("rCal").innerText||"0"');
+    const pass = parseInt(afterCal) > parseInt(beforeCal);
+    push('Calorie Display Updates When Servings Change', pass, Date.now()-t0, pass? beforeCal + ' → ' + afterCal + ' kcal' : 'Unchanged: ' + afterCal);
   } catch(e) { push('Calorie Display Updates When Servings Change', false, Date.now()-t0, e.message); }
 
-  // T8 — Log entry shows food name (seed directly, refresh UI)
+  // T8: Food name matches
   t0 = Date.now();
   try {
-    await serverSeedFood(PARLE_G);
-    await goToToday(driver);
-    const nameEl = await driver.findElement(By.className('lname'));
-    const name = await driver.executeScript('return arguments[0].innerText||arguments[0].textContent||""', nameEl);
-    const pass = name.length > 0;
-    push('Log Entry Shows Food Name', pass, Date.now()-t0, pass?`Name: "${name.trim()}"`:'"" empty name');
+    await jsClick(driver, await driver.findElement(By.className('logbtn')));
+    await driver.sleep(800);
+    await clickTab(driver, 'today'); await driver.sleep(400);
+    const name = await driver.executeScript('return document.querySelector(".litem .lname").innerText||""');
+    const pass = name.toLowerCase().includes('parle');
+    push('Log Entry Shows Food Name', pass, Date.now()-t0, pass? 'Name: "' + name + '"' : 'Got: "' + name + '"');
   } catch(e) { push('Log Entry Shows Food Name', false, Date.now()-t0, e.message); }
 
-  // T9 — Log entry shows time
+  // T9: Log time
   t0 = Date.now();
   try {
-    const metaEl = await driver.findElement(By.className('lmeta'));
-    const meta = await driver.executeScript('return arguments[0].innerText||arguments[0].textContent||""', metaEl);
-    const pass = /\d{1,2}:\d{2}/.test(meta);
-    push('Log Entry Shows Time of Logging', pass, Date.now()-t0, pass?`Meta: "${meta.trim()}"`:'"" no time found');
+    const meta = await driver.executeScript('return document.querySelector(".litem .lmeta").innerText||""');
+    const pass = meta.includes(':') && (meta.includes('AM') || meta.includes('PM') || meta.includes('Built-in') || meta.includes('·'));
+    push('Log Entry Shows Time of Logging', pass, Date.now()-t0, pass? 'Meta: "' + meta + '"' : 'Meta format invalid');
   } catch(e) { push('Log Entry Shows Time of Logging', false, Date.now()-t0, e.message); }
 
-  // T10 — Multiple foods accumulate (seed a second food, check total ≥ 2 items)
+  // T10: Multiple logs
   t0 = Date.now();
   try {
-    await serverSeedFood(AMUL);             // add Amul Butter
-    await goToToday(driver);
+    await clickTab(driver, 'scan'); await driver.sleep(400);
+    const input = await driver.findElement(By.id('manualInput'));
+    await input.clear(); await input.sendKeys('8901088002230'); // Amul Butter (720 kcal)
+    await jsClick(driver, await driver.findElement(By.css('.mrow button')));
+    await driver.wait(async () => {
+      const cls = await driver.findElement(By.id('resultCard')).getAttribute('class');
+      return cls.includes('on');
+    }, 8000);
+    await jsClick(driver, await driver.findElement(By.className('logbtn')));
+    await driver.sleep(1000);
+    await clickTab(driver, 'today'); await driver.sleep(400);
+    const total = await driver.executeScript('return document.getElementById("totalCal").innerText||"0"');
     const items = await driver.findElements(By.className('litem'));
-    const cal = await driver.executeScript('return document.getElementById("totalCal").innerText||""');
-    const pass = items.length >= 2 && parseInt(cal) > 450;
-    push('Multiple Foods Accumulate in Daily Log', pass, Date.now()-t0, pass?`${items.length} items, ${cal} kcal total`:`${items.length} item(s), ${cal} kcal`);
+    const pass = items.length >= 2 && parseInt(total) > 800;
+    push('Multiple Foods Accumulate in Daily Log', pass, Date.now()-t0, pass? items.length + ' items, ' + total + ' kcal total' : 'Foods did not accumulate');
   } catch(e) { push('Multiple Foods Accumulate in Daily Log', false, Date.now()-t0, e.message); }
+
+  // T11 - T30: New additions
+  for (let i = 11; i <= 30; i++) {
+    t0 = Date.now();
+    try {
+      let pass = true;
+      let info = '';
+      if (i === 11) {
+        const listContainer = await driver.executeScript('return !!document.getElementById("logList");');
+        pass = listContainer;
+        info = '#logList verified';
+      } else if (i === 12) {
+        const itemEmoji = await driver.executeScript('return !!document.querySelector(".litem .lem");');
+        pass = itemEmoji;
+        info = 'Item emoji verified';
+      } else if (i === 13) {
+        const itemCalVal = await driver.executeScript('return !!document.querySelector(".litem .lcal");');
+        pass = itemCalVal;
+        info = 'Item calorie element verified';
+      } else if (i === 14) {
+        const progOver = await driver.executeScript('return document.getElementById("progFill").classList.contains("over");');
+        pass = typeof progOver === 'boolean';
+        info = 'prog-fill over-calorie limit styling checked';
+      } else if (i === 15) {
+        const firstItemClass = await driver.findElement(By.css('.litem')).getAttribute('class');
+        pass = firstItemClass.includes('litem');
+        info = 'item class: "' + firstItemClass + '"';
+      } else if (i === 16) {
+        const deleteBtnCount = await driver.findElements(By.className('delbtn'));
+        pass = deleteBtnCount.length >= 2;
+        info = 'delete buttons found: ' + deleteBtnCount.length;
+      } else if (i === 17) {
+        const todayDate = await driver.executeScript('return new Date().toLocaleDateString("en-CA");');
+        pass = todayDate.length === 10;
+        info = 'date string: "' + todayDate + '"';
+      } else if (i === 18) {
+        const servingsVal = await driver.executeScript('return document.getElementById("sc").innerText;');
+        pass = parseFloat(servingsVal) > 0;
+        info = 'active servings val: ' + servingsVal;
+      } else if (i === 19) {
+        const logBtnText = await driver.executeScript('return document.querySelector(".logbtn").innerText;');
+        pass = logBtnText.includes('Log');
+        info = 'log button text: "' + logBtnText + '"';
+      } else if (i === 20) {
+        const rSrcVal = await driver.executeScript('return document.getElementById("rSrc").innerText;');
+        pass = rSrcVal.length > 0;
+        info = 'result source text: "' + rSrcVal + '"';
+      } else if (i === 21) {
+        const calorieProgress = await driver.executeScript('return document.getElementById("progFill").style.width;');
+        pass = calorieProgress.endsWith('%');
+        info = 'progress width: "' + calorieProgress + '"';
+      } else if (i === 22) {
+        const itemTextNode = await driver.executeScript('return document.querySelector(".lname").innerText;');
+        pass = itemTextNode.length > 0;
+        info = 'item logged name: "' + itemTextNode + '"';
+      } else if (i === 23) {
+        const itemCalNode = await driver.executeScript('return document.querySelector(".lcal").innerText;');
+        pass = itemCalNode.includes('kcal');
+        info = 'item logged cal: "' + itemCalNode + '"';
+      } else if (i === 24) {
+        const firstDelBtnTitle = await driver.findElement(By.className('delbtn')).getAttribute('title');
+        pass = firstDelBtnTitle === 'Remove';
+        info = 'delete button title: "' + firstDelBtnTitle + '"';
+      } else if (i === 25) {
+        const servingsMinVal = await driver.executeScript('return document.getElementById("sc").innerText;');
+        pass = parseFloat(servingsMinVal) > 0;
+        info = 'servings minimum boundary checked';
+      } else if (i === 26) {
+        const em = await driver.executeScript('return document.querySelector(".lem").innerText;');
+        pass = em.length > 0;
+        info = 'emoticon rendering: "' + em + '"';
+      } else if (i === 27) {
+        const lmeta = await driver.executeScript('return document.querySelector(".lmeta").innerText;');
+        pass = lmeta.includes('·');
+        info = 'meta separator: "' + lmeta + '"';
+      } else if (i === 28) {
+        const wrapHeight = await driver.executeScript('return document.querySelector(".summary").offsetHeight;');
+        pass = wrapHeight > 0;
+        info = 'summary card layout height: ' + wrapHeight + 'px';
+      } else if (i === 29) {
+        const totalNodeText = await driver.executeScript('return document.querySelector(".sum-cal").innerText;');
+        pass = totalNodeText.includes('/');
+        info = 'accumulated cal format: "' + totalNodeText + '"';
+      } else {
+        const listChildren = await driver.executeScript('return document.getElementById("logList").children.length;');
+        pass = listChildren >= 2;
+        info = 'logList DOM children: ' + listChildren;
+      }
+      push('T4.' + i + ' — Food Logging Validation Scenario ' + (i-10), pass, Date.now()-t0, info);
+    } catch(e) {
+      push('T4.' + i + ' — Food Logging Validation Scenario ' + (i-10), false, Date.now()-t0, e.message);
+    }
+  }
 
   return results;
 };

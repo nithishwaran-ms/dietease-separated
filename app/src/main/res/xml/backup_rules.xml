@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Back up all SharedPreferences so login + food log + products persist after reinstall -->
+    <include domain="sharedpref" path="dietease_prefs.xml"/>
+    <include domain="sharedpref" path="dietease_log.xml"/>
+    <include domain="sharedpref" path="dietease_products.xml"/>
+</full-backup-content>

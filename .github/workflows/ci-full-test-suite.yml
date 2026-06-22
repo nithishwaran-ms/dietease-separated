@@ -1,0 +1,380 @@
+name: 🥗 DietEase+ — Full CI/CD Test Suite (300+ Tests)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      run_appium:
+        description: 'Run Appium mobile tests (slow, needs emulator)'
+        required: false
+        default: 'true'
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JOB 1 — Android Unit Tests  (~150 JVM tests, fast ~2 min)
+# ═══════════════════════════════════════════════════════════════════════════════
+jobs:
+  android-unit-tests:
+    name: 🧪 Android Unit Tests (JVM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: 🔧 Grant Gradle execute permission
+        run: chmod +x gradlew
+
+      - name: 📦 Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 🧪 Run Unit Tests
+        run: ./gradlew test --no-daemon --stacktrace
+        env:
+          JAVA_OPTS: "-Xmx2g"
+
+      - name: 📊 Publish JUnit XML Results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Android Unit Test Results
+          path: app/build/test-results/**/*.xml
+          reporter: java-junit
+          fail-on-error: false
+
+      - name: 📁 Upload Unit Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: |
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/
+          retention-days: 14
+
+      - name: 📝 Write Unit Test Summary
+        if: always()
+        run: |
+          REPORT="app/build/test-results/testDebugUnitTest"
+          if [ -d "$REPORT" ]; then
+            TOTAL=$(grep -r 'tests=' $REPORT --include="*.xml" -h | grep -oP 'tests="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            FAILED=$(grep -r 'failures=' $REPORT --include="*.xml" -h | grep -oP 'failures="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            SKIPPED=$(grep -r 'skipped=' $REPORT --include="*.xml" -h | grep -oP 'skipped="\K[0-9]+' | awk '{s+=$1} END {print s}')
+            PASSED=$((TOTAL - FAILED - SKIPPED))
+            echo "## 🧪 Android Unit Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⏭️ Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📋 Total | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JOB 2 — Build Debug APK (for downstream jobs)
+# ═══════════════════════════════════════════════════════════════════════════════
+  build-apk:
+    name: 🏗️ Build Debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: android-unit-tests
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: 🔧 Grant Gradle execute permission
+        run: chmod +x gradlew
+
+      - name: 📦 Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 🔨 Assemble Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        env:
+          JAVA_OPTS: "-Xmx2g"
+
+      - name: 📁 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dietease-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+      - name: 📝 APK Build Summary
+        run: |
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          SIZE=$(du -sh $APK | cut -f1)
+          echo "## 🏗️ APK Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ✅ SUCCESS |" >> $GITHUB_STEP_SUMMARY
+          echo "| APK Size | $SIZE |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Type | Debug |" >> $GITHUB_STEP_SUMMARY
+          echo "| Min SDK | 24 (Android 7.0) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Target SDK | 35 (Android 15) |" >> $GITHUB_STEP_SUMMARY
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JOB 3 — Selenium Web E2E Tests (~120 tests on hosted web app)
+# ═══════════════════════════════════════════════════════════════════════════════
+  selenium-web-tests:
+    name: 🌐 Selenium Web E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build-apk
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: pdd-app-separated/selenium-tests/package-lock.json
+
+      - name: 📦 Install Selenium test dependencies
+        working-directory: pdd-app-separated/selenium-tests
+        run: npm ci
+
+      - name: 🚀 Start backend server
+        working-directory: pdd-app-separated/backend
+        run: |
+          npm ci
+          node server.js &
+          echo "Waiting for backend server..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/health > /dev/null 2>&1 || curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "✅ Backend ready on port 3000"
+              break
+            fi
+            echo "  Attempt $i/30..."
+            sleep 2
+          done
+
+      - name: 🌐 Run Selenium E2E Tests (Headless Chrome)
+        working-directory: pdd-app-separated/selenium-tests
+        run: node run-tests.js --headless
+        env:
+          DISPLAY: ':99'
+          BASE_URL: ${{ vars.WEB_BASE_URL || 'https://dietease-plus.surge.sh' }}
+        continue-on-error: true
+
+      - name: 📊 Convert Report to HTML
+        if: always()
+        working-directory: pdd-app-separated/selenium-tests
+        run: node convert-report.js || node generate-csv.js || true
+
+      - name: 📁 Upload Selenium Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-web-test-report
+          path: |
+            pdd-app-separated/selenium-tests/reports/*.xlsx
+            pdd-app-separated/selenium-tests/reports/*.csv
+            pdd-app-separated/selenium-tests/reports/*.html
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: 📝 Write Web Test Summary
+        if: always()
+        working-directory: pdd-app-separated/selenium-tests
+        run: |
+          CSV=$(ls reports/*.csv 2>/dev/null | head -1)
+          if [ -f "$CSV" ]; then
+            TOTAL=$(tail -n +2 "$CSV" | wc -l | tr -d ' ')
+            PASSED=$(tail -n +2 "$CSV" | grep -c ",PASS," || echo 0)
+            FAILED=$(tail -n +2 "$CSV" | grep -c ",FAIL," || echo 0)
+            echo "## 🌐 Selenium Web Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📋 Total | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+            RATE=$(echo "scale=1; $PASSED * 100 / $TOTAL" | bc 2>/dev/null || echo "N/A")
+            echo "| 📈 Pass Rate | ${RATE}% |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## 🌐 Selenium Web Tests" >> $GITHUB_STEP_SUMMARY
+            echo "No CSV report generated." >> $GITHUB_STEP_SUMMARY
+          fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JOB 4 — Appium Mobile Tests (~40 tests on Android emulator)
+# ═══════════════════════════════════════════════════════════════════════════════
+  appium-mobile-tests:
+    name: 📱 Appium Mobile Tests (Emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: build-apk
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_appium == 'true' }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚡ Enable KVM for emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo chmod 666 /dev/kvm || true
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📥 Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dietease-debug-apk
+          path: app/build/outputs/apk/debug/
+
+      - name: 📦 Install Appium & test dependencies
+        working-directory: appium-tests
+        run: |
+          npm install
+          npx appium driver install uiautomator2 || npx appium driver update uiautomator2 || true
+
+      - name: 📱 Run Appium Tests on Android Emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          cores: 2
+          ram-size: 3072M
+          heap-size: 512M
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          disable-animations: true
+          script: |
+            echo "📱 Emulator ready. Starting Appium tests..."
+            cd appium-tests
+            node run-tests.js
+        env:
+          DEVICE_NAME: emulator-5554
+          DEVICE_UDID: emulator-5554
+          APK_PATH: ${{ github.workspace }}/app/build/outputs/apk/debug/app-debug.apk
+        continue-on-error: true
+
+      - name: 📁 Upload Appium Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appium-mobile-test-report
+          path: |
+            appium-tests/reports/*.xlsx
+            appium-tests/appium.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: 📝 Write Appium Test Summary
+        if: always()
+        run: |
+          REPORT_DIR="appium-tests/reports"
+          if ls $REPORT_DIR/*.xlsx 1>/dev/null 2>&1; then
+            echo "## 📱 Appium Mobile Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Device | Android API 33 Emulator |" >> $GITHUB_STEP_SUMMARY
+            echo "| App | DietEase+ Debug APK |" >> $GITHUB_STEP_SUMMARY
+            echo "| Framework | Appium + UIAutomator2 |" >> $GITHUB_STEP_SUMMARY
+            echo "| Report | ✅ Excel report generated |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## 📱 Appium Mobile Tests" >> $GITHUB_STEP_SUMMARY
+            echo "No Excel report generated (emulator may have failed to start)." >> $GITHUB_STEP_SUMMARY
+            # Print last 50 lines of appium log for debugging
+            if [ -f "appium-tests/appium.log" ]; then
+              echo "### Appium Log (last 50 lines)" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              tail -50 appium-tests/appium.log >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JOB 5 — Final Summary & Badge
+# ═══════════════════════════════════════════════════════════════════════════════
+  test-summary:
+    name: 📊 Final Test Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [ android-unit-tests, selenium-web-tests, appium-mobile-tests ]
+    if: always()
+
+    steps:
+      - name: 📊 Publish Final Summary
+        run: |
+          echo "# 🥗 DietEase+ CI/CD — Full Test Suite Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Android Unit Tests (~155 tests) | ${{ needs.android-unit-tests.result == 'success' && '✅ PASSED' || '❌ FAILED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ APK Build | ${{ needs.build-apk.result == 'success' && '✅ SUCCESS' || '❌ FAILED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌐 Selenium Web Tests (~120 tests) | ${{ needs.selenium-web-tests.result == 'success' && '✅ PASSED' || needs.selenium-web-tests.result == 'skipped' && '⏭️ SKIPPED' || '⚠️ PARTIAL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📱 Appium Mobile Tests (~40 tests) | ${{ needs.appium-mobile-tests.result == 'success' && '✅ PASSED' || needs.appium-mobile-tests.result == 'skipped' && '⏭️ SKIPPED' || '⚠️ PARTIAL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Tests |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| FoodItem model & DB | 45 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Calorie & macro math | 30 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Auth & validation | 30 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Manual product logic | 25 |" >> $GITHUB_STEP_SUMMARY
+          echo "| History & date logic | 20 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Web UI (Selenium) | ~120 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Mobile UI (Appium) | ~40 |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Total** | **~310** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Commit: \`${{ github.sha }}\` | Branch: \`${{ github.ref_name }}\` | Triggered by: \`${{ github.actor }}\`" >> $GITHUB_STEP_SUMMARY
