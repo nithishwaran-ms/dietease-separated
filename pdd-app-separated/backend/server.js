@@ -4,7 +4,6 @@
  */
 const express = require('express');
 const cors    = require('cors');
-const fetch   = require('node-fetch');
 const path    = require('path');
 const { load, save } = require('./db');
 
@@ -33,21 +32,61 @@ function timeStr() {
 }
 
 /* ── External DB lookups ── */
+function parseOFFNutriments(n) {
+  const getVal = (keys) => {
+    for (const k of keys) {
+      if (n[k] !== undefined && n[k] !== null) {
+        const val = parseFloat(n[k]);
+        if (!isNaN(val)) return val;
+      }
+    }
+    return 0;
+  };
+
+  let calories = 0;
+  if (n['energy-kcal_100g'] !== undefined && n['energy-kcal_100g'] !== null) {
+    calories = parseFloat(n['energy-kcal_100g']);
+  } else if (n['energy-kcal'] !== undefined && n['energy-kcal'] !== null) {
+    calories = parseFloat(n['energy-kcal']);
+  } else if (n['energy-kcal_serving'] !== undefined && n['energy-kcal_serving'] !== null) {
+    calories = parseFloat(n['energy-kcal_serving']);
+  } else if (n['energy-kcal_value'] !== undefined && n['energy-kcal_value'] !== null) {
+    calories = parseFloat(n['energy-kcal_value']);
+  } else {
+    const joules = getVal(['energy_100g', 'energy', 'energy_serving', 'energy-kj', 'energy-kj_100g', 'energy-kj_serving', 'energy_value']);
+    if (joules > 0) {
+      calories = joules / 4.184;
+    }
+  }
+
+  return {
+    calories: Math.round(calories) || 0,
+    protein:  +(getVal(['proteins_100g', 'proteins', 'proteins_serving', 'proteins_value']).toFixed(1)),
+    carbs:    +(getVal(['carbohydrates_100g', 'carbohydrates', 'carbohydrates_serving', 'carbohydrates_value']).toFixed(1)),
+    fat:      +(getVal(['fat_100g', 'fat', 'fat_serving', 'fat_value']).toFixed(1))
+  };
+}
+
 async function lookupOFF(region, code) {
   try {
-    const r = await fetch(`https://${region}.openfoodfacts.org/api/v0/product/${code}.json`);
+    const r = await fetch(`https://${region}.openfoodfacts.org/api/v0/product/${code}.json`, {
+      headers: {
+        'User-Agent': 'DietEase/1.0 (contact@dietease.com)'
+      }
+    });
     const d = await r.json();
     if (d.status === 0 || !d.product) return null;
     const p = d.product, n = p.nutriments || {};
     const name = p.product_name || p.product_name_en || p.generic_name || '';
     if (!name) return null;
+    const parsed = parseOFFNutriments(n);
     const sm = { world: '🌍 Open Food Facts', in: '🇮🇳 OFF India', fr: '🇪🇺 OFF Europe' };
     return {
       name, brand: p.brands || '', barcode: code,
-      calories: Math.round(n['energy-kcal_100g'] || (n['energy_100g'] || 0) / 4.184),
-      protein:  +((n['proteins_100g']       || 0).toFixed(1)),
-      carbs:    +((n['carbohydrates_100g']  || 0).toFixed(1)),
-      fat:      +((n['fat_100g']            || 0).toFixed(1)),
+      calories: parsed.calories,
+      protein:  parsed.protein,
+      carbs:    parsed.carbs,
+      fat:      parsed.fat,
       source: `✅ ${sm[region] || 'Open Food Facts'}`,
     };
   } catch { return null; }

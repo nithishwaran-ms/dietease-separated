@@ -3,6 +3,7 @@ package com.example.dieteasy.data.remote
 import com.google.gson.annotations.SerializedName
 import retrofit2.http.GET
 import retrofit2.http.Path
+import retrofit2.http.Url
 
 // ── Open Food Facts API Response ─────────────────────────────────────────────
 data class OFFResponse(
@@ -18,14 +19,27 @@ data class OFFProduct(
 )
 
 data class OFFNutriments(
-    @SerializedName("energy-kcal_100g")   val calories: Float?,
-    @SerializedName("proteins_100g")      val protein: Float?,
-    @SerializedName("carbohydrates_100g") val carbs: Float?,
-    @SerializedName("fat_100g")           val fat: Float?
+    @SerializedName(value = "energy-kcal_100g", alternate = ["energy-kcal", "energy-kcal_serving", "energy-kcal_value"])
+    val calories: Float?,
+    
+    @SerializedName(value = "energy_100g", alternate = ["energy", "energy_serving", "energy-kj", "energy-kj_100g", "energy-kj_serving", "energy_value"])
+    val energyKj: Float?,
+    
+    @SerializedName(value = "proteins_100g", alternate = ["proteins", "proteins_serving", "proteins_value"])
+    val protein: Float?,
+    
+    @SerializedName(value = "carbohydrates_100g", alternate = ["carbohydrates", "carbohydrates_serving", "carbohydrates_value"])
+    val carbs: Float?,
+    
+    @SerializedName(value = "fat_100g", alternate = ["fat", "fat_serving", "fat_value"])
+    val fat: Float?
 )
 
 // ── Retrofit interface ────────────────────────────────────────────────────────
 interface OpenFoodFactsApi {
     @GET("api/v0/product/{barcode}.json")
     suspend fun getProduct(@Path("barcode") barcode: String): OFFResponse
+
+    @GET
+    suspend fun getProductByUrl(@Url url: String): OFFResponse
 }

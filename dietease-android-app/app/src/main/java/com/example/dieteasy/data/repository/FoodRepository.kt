@@ -51,8 +51,15 @@ class FoodRepository(context: Context) {
 
     private val api: OpenFoodFactsApi by lazy {
         val okHttpClient = okhttp3.OkHttpClient.Builder()
-            .connectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val request = original.newBuilder()
+                    .header("User-Agent", "DietEase/1.0 (contact@dietease.com)")
+                    .build()
+                chain.proceed(request)
+            }
             .build()
 
         Retrofit.Builder()
@@ -102,15 +109,38 @@ class FoodRepository(context: Context) {
     suspend fun lookupBarcode(barcode: String): Result<FoodItem> {
         BUILTIN_PRODUCTS[barcode]?.let { return Result.success(it) }
         manualProducts.find { it.barcode == barcode }?.let { return Result.success(it) }
-        return try {
+
+        // Try world Open Food Facts first
+        try {
             val resp = api.getProduct(barcode)
-            if (resp.status == 1 && resp.product != null)
-                Result.success(resp.product.toFoodItem(barcode))
-            else
-                Result.failure(Exception("Not found"))
+            if (resp.status == 1 && resp.product != null) {
+                return Result.success(resp.product.toFoodItem(barcode))
+            }
         } catch (e: Exception) {
-            Result.failure(e)
+            // Ignore and try next region
         }
+
+        // Try Indian Open Food Facts fallback
+        try {
+            val resp = api.getProductByUrl("https://in.openfoodfacts.org/api/v0/product/$barcode.json")
+            if (resp.status == 1 && resp.product != null) {
+                return Result.success(resp.product.toFoodItem(barcode))
+            }
+        } catch (e: Exception) {
+            // Ignore and try next region
+        }
+
+        // Try European (France) Open Food Facts fallback
+        try {
+            val resp = api.getProductByUrl("https://fr.openfoodfacts.org/api/v0/product/$barcode.json")
+            if (resp.status == 1 && resp.product != null) {
+                return Result.success(resp.product.toFoodItem(barcode))
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+
+        return Result.failure(Exception("Product not found in any Open Food Facts database"))
     }
 
     // ── Log access ────────────────────────────────────────────────────────────
@@ -140,14 +170,20 @@ class FoodRepository(context: Context) {
 
     fun getAllProducts(): List<FoodItem> = BUILTIN_PRODUCTS.values.toList() + manualProducts
 
-    private fun OFFProduct.toFoodItem(barcode: String) = FoodItem(
-        name     = name?.ifBlank { "Unknown" } ?: "Unknown",
-        brand    = brand?.split(",")?.firstOrNull()?.trim() ?: "",
-        barcode  = barcode,
-        calories = nutriments?.calories?.toInt() ?: 0,
-        protein  = nutriments?.protein ?: 0f,
-        carbs    = nutriments?.carbs ?: 0f,
-        fat      = nutriments?.fat ?: 0f,
-        source   = "Open Food Facts"
-    )
+    private fun OFFProduct.toFoodItem(barcode: String): FoodItem {
+        val calculatedCalories = nutriments?.calories?.toInt()
+            ?: nutriments?.energyKj?.let { Math.round(it / 4.184f) }
+            ?: 0
+
+        return FoodItem(
+            name     = name?.ifBlank { "Unknown" } ?: "Unknown",
+            brand    = brand?.split(",")?.firstOrNull()?.trim() ?: "",
+            barcode  = barcode,
+            calories = calculatedCalories,
+            protein  = nutriments?.protein ?: 0f,
+            carbs    = nutriments?.carbs ?: 0f,
+            fat      = nutriments?.fat ?: 0f,
+            source   = "Open Food Facts"
+        )
+    }
 }
