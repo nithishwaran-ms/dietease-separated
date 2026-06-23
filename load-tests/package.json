@@ -1,0 +1,15 @@
+{
+  "name": "dietease-load-tests",
+  "version": "1.0.0",
+  "description": "Baseline/Load Testing for DietEase+ API — 100 VUs, 1 minute",
+  "main": "run-load-tests.js",
+  "scripts": {
+    "test": "node run-load-tests.js",
+    "test:quick": "node run-load-tests.js --quick"
+  },
+  "dependencies": {
+    "autocannon": "^7.15.0",
+    "exceljs": "^4.4.0",
+    "chalk": "^4.1.2"
+  }
+}
